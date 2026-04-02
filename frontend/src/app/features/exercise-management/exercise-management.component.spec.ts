@@ -26,13 +26,14 @@ describe('ExerciseManagementComponent', () => {
     } as any;
     const component = new ExerciseManagementComponent(api);
     const refreshSpy = vi.spyOn(component, 'refresh').mockImplementation(() => {});
-    component.draft = { slug: 'row', name: 'Row', metric_type: 'reps_plus_weight_lbs', sort_order: 2 };
+    component.exercises = [{ id: 3, slug: 'squat', name: 'Squat', metric_type: 'reps', sort_order: 4 }];
+    component.draft = { name: 'Bent Over Row', metric_type: 'reps_plus_weight_lbs' };
 
     component.addExercise();
 
-    expect(api.createExercise).toHaveBeenCalledWith({ slug: 'row', name: 'Row', metric_type: 'reps_plus_weight_lbs', sort_order: 2 });
+    expect(api.createExercise).toHaveBeenCalledWith({ slug: 'bent-over-row', name: 'Bent Over Row', metric_type: 'reps_plus_weight_lbs', sort_order: 5 });
     expect(component.message).toBe('Exercise created');
-    expect(component.draft).toEqual({ name: '', slug: '', metric_type: 'reps', sort_order: 10 });
+    expect(component.draft).toEqual({ name: '', metric_type: 'reps' });
     expect(refreshSpy).toHaveBeenCalledOnce();
   });
 
@@ -47,19 +48,18 @@ describe('ExerciseManagementComponent', () => {
     expect(component.message).toBe('Failed to create exercise');
   });
 
-  it('updates one exercise and refreshes on success', () => {
+  it('updates one exercise on success', () => {
     const api = {
-      updateExercise: vi.fn().mockReturnValue(of({})),
+      updateExercise: vi.fn().mockReturnValue(of({ id: 4, slug: 'squat', name: 'Back Squat', metric_type: 'reps', sort_order: 3 })),
     } as any;
     const component = new ExerciseManagementComponent(api);
-    const refreshSpy = vi.spyOn(component, 'refresh').mockImplementation(() => {});
     const exercise: Exercise = { id: 4, slug: 'squat', name: 'Squat', metric_type: 'reps', sort_order: 3 };
 
     component.saveExercise(exercise);
 
     expect(api.updateExercise).toHaveBeenCalledWith(4, { name: 'Squat', metric_type: 'reps', sort_order: 3 });
     expect(component.message).toBe('Exercise updated');
-    expect(refreshSpy).toHaveBeenCalledOnce();
+    expect(exercise.name).toBe('Back Squat');
   });
 
   it('reorders exercises when dropped and applies API response', () => {
@@ -77,8 +77,7 @@ describe('ExerciseManagementComponent', () => {
     const component = new ExerciseManagementComponent(api);
     component.exercises = exercises;
 
-    component.onDragStart(2);
-    component.onDrop(1);
+    component.onDrop({ previousIndex: 1, currentIndex: 0 } as any);
 
     expect(api.reorderExercises).toHaveBeenCalledWith({
       items: [
@@ -97,8 +96,7 @@ describe('ExerciseManagementComponent', () => {
     const component = new ExerciseManagementComponent(api);
     component.exercises = [{ id: 1, slug: 'a', name: 'A', metric_type: 'reps', sort_order: 1 }];
 
-    component.onDragStart(1);
-    component.onDrop(1);
+    component.onDrop({ previousIndex: 0, currentIndex: 0 } as any);
 
     expect(api.reorderExercises).not.toHaveBeenCalled();
   });

@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select
@@ -17,6 +17,26 @@ from app.schemas.dashboard import (
 )
 from app.schemas.log import RecentLogItem
 from app.services.totals import totals_for_exercise
+
+
+def _day_bounds(day: date) -> tuple[datetime, datetime]:
+    start = datetime(day.year, day.month, day.day, tzinfo=UTC)
+    return start, start + timedelta(days=1)
+
+
+def _metric_value(metric_type: MetricType, totals: Totals) -> int:
+    if metric_type == MetricType.DURATION_SECONDS:
+        return int(totals.duration_seconds or 0)
+    return int(totals.reps or 0)
+
+
+def _count_logs_in_window(db: Session, start: datetime, end: datetime) -> int:
+    total = db.scalar(
+        select(func.count(ExerciseLog.id)).where(
+            and_(ExerciseLog.logged_at >= start, ExerciseLog.logged_at < end)
+        )
+    )
+    return int(total or 0)
 
 
 def _aggregate_by_exercise(db: Session, start: datetime, end: datetime) -> list[ExerciseTotalsItem]:
@@ -59,57 +79,42 @@ def _aggregate_by_exercise(db: Session, start: datetime, end: datetime) -> list[
 
 def get_summary(db: Session) -> DashboardSummaryResponse:
     now = datetime.now(UTC)
-    today_start = datetime(now.year, now.month, now.day, tzinfo=UTC)
+    today_start, end = _day_bounds(now.date())
     week_start = today_start - timedelta(days=now.weekday())
-    end = today_start + timedelta(days=1)
 
     today = _aggregate_by_exercise(db, today_start, end)
     current_week = _aggregate_by_exercise(db, week_start, end)
     last_30_days = _aggregate_by_exercise(db, today_start - timedelta(days=29), end)
 
-    total_logs_today = db.scalar(
-        select(func.count(ExerciseLog.id)).where(
-            and_(ExerciseLog.logged_at >= today_start, ExerciseLog.logged_at < end)
-        )
-    )
-    total_logs_this_week = db.scalar(
-        select(func.count(ExerciseLog.id)).where(
-            and_(ExerciseLog.logged_at >= week_start, ExerciseLog.logged_at < end)
-        )
-    )
+    total_logs_today = _count_logs_in_window(db, today_start, end)
+    total_logs_this_week = _count_logs_in_window(db, week_start, end)
 
     return DashboardSummaryResponse(
         today=today,
         current_week=current_week,
         last_30_days=last_30_days,
-        total_logs_today=int(total_logs_today or 0),
-        total_logs_this_week=int(total_logs_this_week or 0),
+        total_logs_today=total_logs_today,
+        total_logs_this_week=total_logs_this_week,
     )
 
 
 def _streak(days: list[DailyTotalItem], metric_type: MetricType) -> int:
     streak = 0
     for item in reversed(days):
-        value = item.totals.duration_seconds if metric_type == MetricType.DURATION_SECONDS else item.totals.reps
-        if value and value > 0:
+        if _metric_value(metric_type, item.totals) > 0:
             streak += 1
         else:
             break
     return streak
 
 
-def get_exercise_history(db: Session, slug: str, days: int) -> ExerciseHistoryResponse:
-    exercise = db.scalar(select(Exercise).where(Exercise.slug == slug))
-    if not exercise:
-        raise HTTPException(status_code=404, detail="exercise not found")
-
-    days = max(1, min(days, 365))
-    today = datetime.now(UTC).date()
-    start_day = today - timedelta(days=days - 1)
-    start_dt = datetime.combine(start_day, time.min, tzinfo=UTC)
-    end_dt = datetime.combine(today + timedelta(days=1), time.min, tzinfo=UTC)
-
-    raw = db.execute(
+def _daily_totals_map(
+    db: Session,
+    exercise_id: int,
+    start: datetime,
+    end: datetime,
+) -> dict[date, Totals]:
+    rows = db.execute(
         select(
             func.date(ExerciseLog.logged_at),
             func.coalesce(func.sum(ExerciseLog.reps), 0),
@@ -117,54 +122,61 @@ def get_exercise_history(db: Session, slug: str, days: int) -> ExerciseHistoryRe
         )
         .where(
             and_(
-                ExerciseLog.exercise_id == exercise.id,
-                ExerciseLog.logged_at >= start_dt,
-                ExerciseLog.logged_at < end_dt,
+                ExerciseLog.exercise_id == exercise_id,
+                ExerciseLog.logged_at >= start,
+                ExerciseLog.logged_at < end,
             )
         )
         .group_by(func.date(ExerciseLog.logged_at))
         .order_by(func.date(ExerciseLog.logged_at))
     ).all()
+
     mapped: dict[date, Totals] = {}
-    for row in raw:
+    for row in rows:
         raw_day = row[0]
         parsed_day = raw_day if isinstance(raw_day, date) else date.fromisoformat(str(raw_day))
         mapped[parsed_day] = Totals(reps=int(row[1]), duration_seconds=int(row[2]))
 
+    return mapped
+
+
+def _build_days_and_best(
+    start_day: date,
+    day_count: int,
+    metric_type: MetricType,
+    totals_by_day: dict[date, Totals],
+) -> tuple[list[DailyTotalItem], BestDay | None]:
     items: list[DailyTotalItem] = []
     best: BestDay | None = None
-    for i in range(days):
-        d = start_day + timedelta(days=i)
-        totals = mapped.get(d, Totals(reps=0, duration_seconds=0))
-        items.append(DailyTotalItem(day=d, totals=totals))
-        metric_value = totals.duration_seconds if exercise.metric_type == MetricType.DURATION_SECONDS else totals.reps
-        if metric_value and metric_value > 0:
-            if not best:
-                best = BestDay(day=d, totals=totals)
-            else:
-                best_metric = (
-                    best.totals.duration_seconds
-                    if exercise.metric_type == MetricType.DURATION_SECONDS
-                    else best.totals.reps
-                )
-                if metric_value > (best_metric or 0):
-                    best = BestDay(day=d, totals=totals)
 
-    start_today = datetime.combine(today, time.min, tzinfo=UTC)
-    end_today = start_today + timedelta(days=1)
-    all_time = totals_for_exercise(db, exercise.id)
-    today_total = totals_for_exercise(db, exercise.id, start_today, end_today)
-    last_7 = totals_for_exercise(db, exercise.id, end_today - timedelta(days=7), end_today)
-    last_30 = totals_for_exercise(db, exercise.id, end_today - timedelta(days=30), end_today)
+    for i in range(day_count):
+        day = start_day + timedelta(days=i)
+        totals = totals_by_day.get(day, Totals(reps=0, duration_seconds=0))
+        items.append(DailyTotalItem(day=day, totals=totals))
 
-    recent = db.execute(
+        current_value = _metric_value(metric_type, totals)
+        if current_value <= 0:
+            continue
+
+        if best is None:
+            best = BestDay(day=day, totals=totals)
+            continue
+
+        if current_value > _metric_value(metric_type, best.totals):
+            best = BestDay(day=day, totals=totals)
+
+    return items, best
+
+
+def _recent_logs_for_exercise(db: Session, exercise: Exercise, limit: int = 20) -> list[RecentLogItem]:
+    logs = db.execute(
         select(ExerciseLog)
         .where(ExerciseLog.exercise_id == exercise.id)
         .order_by(ExerciseLog.logged_at.desc())
-        .limit(20)
+        .limit(limit)
     ).scalars().all()
 
-    recent_logs = [
+    return [
         RecentLogItem(
             id=log.id,
             exercise_slug=exercise.slug,
@@ -176,8 +188,29 @@ def get_exercise_history(db: Session, slug: str, days: int) -> ExerciseHistoryRe
             notes=log.notes,
             logged_at=log.logged_at,
         )
-        for log in recent
+        for log in logs
     ]
+
+
+def get_exercise_history(db: Session, slug: str, days: int) -> ExerciseHistoryResponse:
+    exercise = db.scalar(select(Exercise).where(Exercise.slug == slug))
+    if not exercise:
+        raise HTTPException(status_code=404, detail="exercise not found")
+
+    days = max(1, min(days, 365))
+    today = datetime.now(UTC).date()
+    start_day = today - timedelta(days=days - 1)
+    start_today, end_today = _day_bounds(today)
+    start_window, _ = _day_bounds(start_day)
+
+    mapped = _daily_totals_map(db, exercise.id, start_window, end_today)
+    items, best = _build_days_and_best(start_day, days, exercise.metric_type, mapped)
+
+    all_time = totals_for_exercise(db, exercise.id)
+    today_total = totals_for_exercise(db, exercise.id, start_today, end_today)
+    last_7 = totals_for_exercise(db, exercise.id, end_today - timedelta(days=7), end_today)
+    last_30 = totals_for_exercise(db, exercise.id, end_today - timedelta(days=30), end_today)
+    recent_logs = _recent_logs_for_exercise(db, exercise)
 
     return ExerciseHistoryResponse(
         exercise=ExerciseMeta(

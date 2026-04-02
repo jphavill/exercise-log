@@ -1,11 +1,4 @@
-:root {
-  --bg: #f8f5ef;
-  --surface: #ffffff;
-  --ink: #1f2933;
-  --accent: #0f766e;
-  --accent-soft: #d1fae5;
-  --border: #d6d3d1;
-}
+@import './theme.css';
 
 * {
   box-sizing: border-box;
@@ -14,8 +7,8 @@
 body {
   margin: 0;
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  color: var(--ink);
-  background: radial-gradient(circle at 10% 10%, #fff, var(--bg));
+  color: var(--color-ink);
+  background: radial-gradient(circle at 10% 10%, var(--color-surface), var(--color-bg));
 }
 
 .shell {
@@ -39,7 +32,7 @@ body {
 
 .topbar a {
   text-decoration: none;
-  color: var(--ink);
+  color: var(--color-ink);
   padding: 0.4rem 0.7rem;
   border-radius: 8px;
 }
@@ -51,13 +44,13 @@ body {
 }
 
 .topbar a.active {
-  background: var(--accent-soft);
-  color: #0b4f49;
+  background: var(--color-accent-soft);
+  color: var(--color-nav-active-text);
 }
 
 .section {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -76,13 +69,13 @@ body {
 }
 
 .card {
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 0.8rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 a.card {
@@ -99,7 +92,7 @@ a.card {
 }
 
 .trend-bar-wrap {
-  background: #e7e5e4;
+  background: var(--color-trend-track);
   border-radius: 999px;
   overflow: hidden;
   height: 10px;
@@ -107,7 +100,7 @@ a.card {
 
 .trend-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), #14b8a6);
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-2));
 }
 
 .feed {
@@ -117,7 +110,7 @@ a.card {
 }
 
 .feed-item {
-  border-bottom: 1px solid #efefef;
+  border-bottom: 1px solid var(--color-feed-divider);
   padding-bottom: 0.35rem;
 }
 
@@ -129,7 +122,7 @@ a.card {
 
 .table th,
 .table td {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
   padding: 0.5rem;
   text-align: left;
 }
@@ -141,8 +134,8 @@ button {
 }
 
 button {
-  background: var(--accent);
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-surface);
   border: none;
   border-radius: 8px;
   padding: 0.45rem 0.8rem;
@@ -175,20 +168,20 @@ button {
   width: 2rem;
   height: 2rem;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #e7e5e4;
-  color: #78716c;
+  background: var(--color-trend-track);
+  color: var(--color-text-muted);
 }
 
 .metric-option.selected {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .metric-option:not(.selected):hover {
-  background: #d6d3d1;
+  background: var(--color-border);
 }
 
 ng-icon {
