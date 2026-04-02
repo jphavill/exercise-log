@@ -132,7 +132,7 @@ run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml build
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d --remove-orphans
 
 log "Seeding default exercises"
-run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml exec -T backend python seed.py
+run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml run --rm backend python seed.py
 
 log "Deploy complete"
 printf 'Backup created: %s\n' "$FINAL_BACKUP_PATH"
