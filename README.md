@@ -56,7 +56,7 @@ docker compose up -d --build
 ```
 
 Access at:
-- `http://localhost:8080`
+- `http://localhost:8003`
 
 ## Routes
 
@@ -75,7 +75,7 @@ This starts:
 - Frontend container
 - Backend container (`uvicorn --reload`)
 - PostgreSQL
-- Caddy (on port `8080`)
+- Caddy (on port `8003`)
 
 ### Production compose mode
 
