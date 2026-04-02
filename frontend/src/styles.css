@@ -1,0 +1,211 @@
+:root {
+  --bg: #f8f5ef;
+  --surface: #ffffff;
+  --ink: #1f2933;
+  --accent: #0f766e;
+  --accent-soft: #d1fae5;
+  --border: #d6d3d1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at 10% 10%, #fff, var(--bg));
+}
+
+.shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.topbar a {
+  text-decoration: none;
+  color: var(--ink);
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.topbar a.active {
+  background: var(--accent-soft);
+  color: #0b4f49;
+}
+
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: #fff;
+}
+
+a.card {
+  text-decoration: none;
+  color: inherit;
+}
+
+.trend-list {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.trend-bar-wrap {
+  background: #e7e5e4;
+  border-radius: 999px;
+  overflow: hidden;
+  height: 10px;
+}
+
+.trend-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #14b8a6);
+}
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.feed-item {
+  border-bottom: 1px solid #efefef;
+  padding-bottom: 0.35rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.8rem;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem;
+  text-align: left;
+}
+
+input,
+select,
+button {
+  font: inherit;
+}
+
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.button-with-icon,
+.meta-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.card-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.metric-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.metric-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #e7e5e4;
+  color: #78716c;
+}
+
+.metric-option.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.metric-option:not(.selected):hover {
+  background: #d6d3d1;
+}
+
+ng-icon {
+  width: 1rem;
+  height: 1rem;
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+.form-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+@media (max-width: 700px) {
+  .trend-list {
+    grid-template-columns: 1fr;
+  }
+}
