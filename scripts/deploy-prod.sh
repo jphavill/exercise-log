@@ -15,6 +15,7 @@ usage() {
   printf '  4) postgres backup to %s\n' "$BACKUP_DIR"
   printf '  5) remove backups older than 14 days\n'
   printf '  6) docker compose down/build/up\n'
+  printf '  7) seed default exercises\n'
 }
 
 log() {
@@ -129,6 +130,9 @@ log "Deploying production stack"
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml down
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml build
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d --remove-orphans
+
+log "Seeding default exercises"
+run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml exec -T backend python seed.py
 
 log "Deploy complete"
 printf 'Backup created: %s\n' "$FINAL_BACKUP_PATH"
