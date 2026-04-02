@@ -27,14 +27,17 @@ describe('ApiService', () => {
     const http = {
       get: vi.fn().mockReturnValue(response),
       put: vi.fn().mockReturnValue(response),
+      delete: vi.fn().mockReturnValue(response),
     } as any;
     const service = new ApiService(http);
 
     service.updateExercise(7, { name: 'Bench', metric_type: 'reps', sort_order: 2 });
+    service.deleteExercise(7);
     service.getExerciseHistory('bench-press', 45);
     service.getRecentLogs(10);
 
     expect(http.put).toHaveBeenCalledWith('/api/exercises/7', { name: 'Bench', metric_type: 'reps', sort_order: 2 });
+    expect(http.delete).toHaveBeenCalledWith('/api/exercises/7');
     expect(http.get).toHaveBeenCalledWith('/api/exercises/bench-press/history?days=45');
     expect(http.get).toHaveBeenCalledWith('/api/logs/recent?limit=10');
   });

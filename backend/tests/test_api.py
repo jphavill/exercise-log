@@ -110,3 +110,48 @@ def test_reorder_exercises_endpoint(client):
     orders = {item["id"]: item["sort_order"] for item in response.json()}
     assert orders[exercises[0]["id"]] == 3
     assert orders[exercises[1]["id"]] == 1
+
+
+def test_delete_exercise_soft_delete_hides_from_list(client):
+    exercises = client.get("/api/exercises").json()
+    target = exercises[0]
+
+    response = client.delete(f"/api/exercises/{target['id']}")
+    assert response.status_code == 204
+
+    remaining = client.get("/api/exercises").json()
+    remaining_ids = {item["id"] for item in remaining}
+    assert target["id"] not in remaining_ids
+
+
+def test_deleted_exercise_cannot_create_logs(client):
+    exercises = client.get("/api/exercises").json()
+    target = exercises[0]
+
+    delete_response = client.delete(f"/api/exercises/{target['id']}")
+    assert delete_response.status_code == 204
+
+    payload = {"exercise_slug": target["slug"], "reps": 5}
+    if target["metric_type"] == "duration_seconds":
+        payload = {"exercise_slug": target["slug"], "duration_seconds": 20}
+    elif target["metric_type"] == "reps_plus_weight_lbs":
+        payload = {"exercise_slug": target["slug"], "reps": 5, "weight_lbs": 25}
+
+    response = client.post("/api/logs", json=payload)
+    assert response.status_code == 404
+
+
+def test_deleted_exercise_hidden_from_dashboard_and_recent(client):
+    client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 5})
+    exercises = client.get("/api/exercises").json()
+    pullups = next(item for item in exercises if item["slug"] == "pullups")
+    delete_response = client.delete(f"/api/exercises/{pullups['id']}")
+    assert delete_response.status_code == 204
+
+    summary = client.get("/api/dashboard/summary")
+    assert summary.status_code == 200
+    assert all(item["exercise_slug"] != "pullups" for item in summary.json()["today"])
+
+    recent = client.get("/api/logs/recent?limit=20")
+    assert recent.status_code == 200
+    assert all(item["exercise_slug"] != "pullups" for item in recent.json())

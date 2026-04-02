@@ -1,0 +1,19 @@
+:root {
+  --color-bg: rgba(248, 245, 239, 1);
+  --color-surface: rgba(255, 255, 255, 1);
+  --color-surface-raised: rgba(255, 255, 255, 1);
+  --color-ink: rgba(31, 41, 51, 1);
+  --color-accent: rgba(15, 118, 110, 1);
+  --color-accent-soft: rgba(209, 250, 229, 1);
+  --color-border: rgba(214, 211, 209, 1);
+  --color-nav-active-text: rgba(11, 79, 73, 1);
+  --color-trend-track: rgba(231, 229, 228, 1);
+  --color-accent-2: rgba(20, 184, 166, 1);
+  --color-feed-divider: rgba(239, 239, 239, 1);
+  --color-text-muted: rgba(120, 113, 108, 1);
+  --color-shadow-soft: rgba(0, 0, 0, 0.18);
+  --color-transparent: rgba(0, 0, 0, 0);
+  --color-accent-alpha-18: rgba(15, 118, 110, 0.18);
+  --color-accent-alpha-35: rgba(15, 118, 110, 0.35);
+  --color-accent-alpha-65: rgba(15, 118, 110, 0.65);
+}

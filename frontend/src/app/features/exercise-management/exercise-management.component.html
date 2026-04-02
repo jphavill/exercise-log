@@ -1,0 +1,146 @@
+<section class="section">
+  <h2 class="section-title"><ng-icon name="sectionTable" aria-hidden="true"></ng-icon><span>Manage Exercises</span></h2>
+  <p *ngIf="message">{{ message }}</p>
+
+  <table class="table manage-table">
+    <thead>
+      <tr><th>Order</th><th>Name</th><th>Metric Type</th><th class="actions-header" aria-label="Row actions"></th></tr>
+    </thead>
+    <tbody cdkDropList [cdkDropListData]="exercises" (cdkDropListDropped)="onDrop($event)">
+      <tr
+        *ngFor="let exercise of exercises; let index = index"
+        cdkDrag
+        class="exercise-row"
+      >
+        <td class="order-cell">
+          <div class="order-cell-content" cdkDragHandle>
+            <ng-icon name="actionReorder" aria-hidden="true"></ng-icon>
+            <span>{{ index + 1 }}</span>
+          </div>
+        </td>
+        <td class="name-cell" [title]="exercise.slug">
+          <input class="name-input" type="text" [(ngModel)]="exercise.name" (ngModelChange)="queueExerciseAutosave(exercise)" [title]="exercise.slug" />
+        </td>
+        <td>
+          <div class="metric-toggle" role="group" aria-label="Metric type">
+            <button
+              type="button"
+              class="metric-option"
+              [class.selected]="exercise.metric_type === 'duration_seconds'"
+              (click)="updateMetricType(exercise, 'duration_seconds')"
+              aria-label="Duration (seconds)"
+              title="Duration (seconds)"
+            >
+              <ng-icon name="metricDuration" aria-hidden="true"></ng-icon>
+            </button>
+            <button
+              type="button"
+              class="metric-option"
+              [class.selected]="exercise.metric_type === 'reps'"
+              (click)="updateMetricType(exercise, 'reps')"
+              aria-label="Reps"
+              title="Reps"
+            >
+              <ng-icon name="metricReps" aria-hidden="true"></ng-icon>
+            </button>
+            <button
+              type="button"
+              class="metric-option"
+              [class.selected]="exercise.metric_type === 'reps_plus_weight_lbs'"
+              (click)="updateMetricType(exercise, 'reps_plus_weight_lbs')"
+              aria-label="Reps plus weight (lbs)"
+              title="Reps plus weight (lbs)"
+            >
+              <ng-icon name="metricWeightedReps" aria-hidden="true"></ng-icon>
+            </button>
+          </div>
+        </td>
+        <td class="actions-cell">
+          <div class="row-actions" (click)="onMenuClick($event)">
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Exercise actions"
+              (click)="toggleMenu(exercise.id, $event)"
+            >
+              <ng-icon name="actionMore" aria-hidden="true"></ng-icon>
+            </button>
+            <div class="row-menu" *ngIf="openMenuExerciseId === exercise.id">
+              <button type="button" class="menu-item" (click)="addPendingExerciseRow()">
+                <ng-icon name="actionAdd" aria-hidden="true"></ng-icon>
+                <span>Add row</span>
+              </button>
+              <button type="button" class="menu-item danger" (click)="deleteExercise(exercise.id)">
+                <ng-icon name="actionDelete" aria-hidden="true"></ng-icon>
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr *ngIf="pendingExercise" class="exercise-row pending-row">
+        <td class="order-cell">
+          <div class="order-cell-content">
+            <span>{{ exercises.length + 1 }}</span>
+          </div>
+        </td>
+        <td class="name-cell" title="New exercise">
+          <input class="name-input" type="text" [(ngModel)]="pendingExercise.name" placeholder="Exercise name" />
+        </td>
+        <td>
+          <div class="metric-toggle" role="group" aria-label="Metric type">
+            <button
+              type="button"
+              class="metric-option"
+              [class.selected]="pendingExercise.metric_type === 'duration_seconds'"
+              (click)="pendingExercise.metric_type = 'duration_seconds'"
+              aria-label="Duration (seconds)"
+              title="Duration (seconds)"
+            >
+              <ng-icon name="metricDuration" aria-hidden="true"></ng-icon>
+            </button>
+            <button
+              type="button"
+              class="metric-option"
+              [class.selected]="pendingExercise.metric_type === 'reps'"
+              (click)="pendingExercise.metric_type = 'reps'"
+              aria-label="Reps"
+              title="Reps"
+            >
+              <ng-icon name="metricReps" aria-hidden="true"></ng-icon>
+            </button>
+            <button
+              type="button"
+              class="metric-option"
+              [class.selected]="pendingExercise.metric_type === 'reps_plus_weight_lbs'"
+              (click)="pendingExercise.metric_type = 'reps_plus_weight_lbs'"
+              aria-label="Reps plus weight (lbs)"
+              title="Reps plus weight (lbs)"
+            >
+              <ng-icon name="metricWeightedReps" aria-hidden="true"></ng-icon>
+            </button>
+          </div>
+        </td>
+        <td class="actions-cell">
+          <button
+            type="button"
+            class="icon-button save-button"
+            aria-label="Save exercise"
+            [disabled]="!pendingExercise.name.trim()"
+            (click)="savePendingExercise()"
+          >
+            <ng-icon name="actionSave" aria-hidden="true"></ng-icon>
+          </button>
+        </td>
+      </tr>
+      <tr *ngIf="!exercises.length && !pendingExercise">
+        <td colspan="4" class="empty-table-cell">
+          <button type="button" class="button-with-icon" (click)="addPendingExerciseRow()">
+            <ng-icon name="actionAdd" aria-hidden="true"></ng-icon>
+            <span>Add first exercise</span>
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</section>

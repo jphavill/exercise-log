@@ -14,6 +14,7 @@ from app.services.exercise_service import (
     create_exercise,
     list_exercises,
     reorder_exercises,
+    soft_delete_exercise,
     update_exercise,
 )
 
@@ -42,6 +43,11 @@ def update_exercise_route(
     exercise_id: int, payload: ExerciseUpdateRequest, db: Session = Depends(get_db)
 ) -> ExerciseResponse:
     return update_exercise(db, exercise_id, payload)
+
+
+@router.delete("/{exercise_id}", status_code=204)
+def delete_exercise_route(exercise_id: int, db: Session = Depends(get_db)) -> None:
+    soft_delete_exercise(db, exercise_id)
 
 
 @router.get("/{slug}/history", response_model=ExerciseHistoryResponse)

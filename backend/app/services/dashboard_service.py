@@ -32,8 +32,15 @@ def _metric_value(metric_type: MetricType, totals: Totals) -> int:
 
 def _count_logs_in_window(db: Session, start: datetime, end: datetime) -> int:
     total = db.scalar(
-        select(func.count(ExerciseLog.id)).where(
-            and_(ExerciseLog.logged_at >= start, ExerciseLog.logged_at < end)
+        select(func.count(ExerciseLog.id))
+        .select_from(ExerciseLog)
+        .join(Exercise, Exercise.id == ExerciseLog.exercise_id)
+        .where(
+            and_(
+                ExerciseLog.logged_at >= start,
+                ExerciseLog.logged_at < end,
+                Exercise.deleted_at.is_(None),
+            )
         )
     )
     return int(total or 0)
@@ -62,6 +69,7 @@ def _aggregate_by_exercise(db: Session, start: datetime, end: datetime) -> list[
         )
         .select_from(Exercise)
         .join(window_totals, window_totals.c.exercise_id == Exercise.id, isouter=True)
+        .where(Exercise.deleted_at.is_(None))
         .order_by(Exercise.sort_order, Exercise.name)
     ).all()
 
@@ -193,7 +201,7 @@ def _recent_logs_for_exercise(db: Session, exercise: Exercise, limit: int = 20) 
 
 
 def get_exercise_history(db: Session, slug: str, days: int) -> ExerciseHistoryResponse:
-    exercise = db.scalar(select(Exercise).where(Exercise.slug == slug))
+    exercise = db.scalar(select(Exercise).where(and_(Exercise.slug == slug, Exercise.deleted_at.is_(None))))
     if not exercise:
         raise HTTPException(status_code=404, detail="exercise not found")
 

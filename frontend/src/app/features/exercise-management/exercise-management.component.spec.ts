@@ -19,7 +19,17 @@ describe('ExerciseManagementComponent', () => {
     expect(component.exercises).toEqual(exercises);
   });
 
-  it('creates exercise, resets draft, and refreshes list', () => {
+  it('adds one pending row with default metric', () => {
+    const api = {} as any;
+    const component = new ExerciseManagementComponent(api);
+
+    component.addPendingExerciseRow();
+    component.addPendingExerciseRow();
+
+    expect(component.pendingExercise).toEqual({ name: '', metric_type: 'reps' });
+  });
+
+  it('creates pending exercise, resets row, and refreshes list', () => {
     const api = {
       createExercise: vi.fn().mockReturnValue(of({})),
       getExercises: vi.fn().mockReturnValue(of([])),
@@ -27,25 +37,52 @@ describe('ExerciseManagementComponent', () => {
     const component = new ExerciseManagementComponent(api);
     const refreshSpy = vi.spyOn(component, 'refresh').mockImplementation(() => {});
     component.exercises = [{ id: 3, slug: 'squat', name: 'Squat', metric_type: 'reps', sort_order: 4 }];
-    component.draft = { name: 'Bent Over Row', metric_type: 'reps_plus_weight_lbs' };
+    component.pendingExercise = { name: 'Bent Over Row', metric_type: 'reps_plus_weight_lbs' };
 
-    component.addExercise();
+    component.savePendingExercise();
 
     expect(api.createExercise).toHaveBeenCalledWith({ slug: 'bent-over-row', name: 'Bent Over Row', metric_type: 'reps_plus_weight_lbs', sort_order: 5 });
     expect(component.message).toBe('Exercise created');
-    expect(component.draft).toEqual({ name: '', metric_type: 'reps' });
+    expect(component.pendingExercise).toBeNull();
     expect(refreshSpy).toHaveBeenCalledOnce();
   });
 
-  it('sets error message when creating exercise fails', () => {
+  it('does not create pending exercise when name is blank', () => {
+    const api = {
+      createExercise: vi.fn(),
+    } as any;
+    const component = new ExerciseManagementComponent(api);
+    component.pendingExercise = { name: '   ', metric_type: 'reps' };
+
+    component.savePendingExercise();
+
+    expect(api.createExercise).not.toHaveBeenCalled();
+  });
+
+  it('sets error message when creating pending exercise fails', () => {
     const api = {
       createExercise: vi.fn().mockReturnValue(throwError(() => new Error('boom'))),
     } as any;
     const component = new ExerciseManagementComponent(api);
+    component.pendingExercise = { name: 'Front Lever', metric_type: 'duration_seconds' };
 
-    component.addExercise();
+    component.savePendingExercise();
 
     expect(component.message).toBe('Failed to create exercise');
+  });
+
+  it('deletes exercise and refreshes list', () => {
+    const api = {
+      deleteExercise: vi.fn().mockReturnValue(of(undefined)),
+    } as any;
+    const component = new ExerciseManagementComponent(api);
+    const refreshSpy = vi.spyOn(component, 'refresh').mockImplementation(() => {});
+
+    component.deleteExercise(8);
+
+    expect(api.deleteExercise).toHaveBeenCalledWith(8);
+    expect(component.message).toBe('Exercise deleted');
+    expect(refreshSpy).toHaveBeenCalledOnce();
   });
 
   it('updates one exercise on success', () => {

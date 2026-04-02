@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.models.exercise import Exercise, MetricType
@@ -27,7 +27,11 @@ def _validate_payload(metric_type: MetricType, payload: CreateLogRequest) -> Non
 
 
 def create_log(db: Session, payload: CreateLogRequest) -> LogResponse:
-    exercise = db.scalar(select(Exercise).where(Exercise.slug == payload.exercise_slug))
+    exercise = db.scalar(
+        select(Exercise).where(
+            and_(Exercise.slug == payload.exercise_slug, Exercise.deleted_at.is_(None))
+        )
+    )
     if not exercise:
         raise HTTPException(status_code=404, detail="exercise_slug not found")
 
@@ -69,6 +73,7 @@ def get_recent_logs(db: Session, limit: int) -> list[RecentLogItem]:
     rows = db.execute(
         select(ExerciseLog, Exercise.slug, Exercise.name, Exercise.metric_type)
         .join(Exercise, Exercise.id == ExerciseLog.exercise_id)
+        .where(Exercise.deleted_at.is_(None))
         .order_by(ExerciseLog.logged_at.desc())
         .limit(limit)
     ).all()

@@ -1,0 +1,152 @@
+@import '../../../theme.css';
+
+.exercise-row {
+  cursor: default;
+}
+
+.manage-table th,
+.manage-table td {
+  vertical-align: middle;
+}
+
+.actions-header,
+.actions-cell {
+  width: 5.5rem;
+  text-align: right;
+}
+
+.manage-table .exercise-row {
+  height: 3rem;
+}
+
+.empty-table-cell {
+  text-align: center;
+  padding: 1rem;
+}
+
+.order-cell {
+  width: 4.5rem;
+}
+
+.order-cell-content {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 100%;
+  cursor: grab;
+  user-select: none;
+}
+
+.name-cell {
+  padding: 0;
+}
+
+.name-input {
+  width: 100%;
+  height: 100%;
+  min-height: 3rem;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  background: var(--color-transparent);
+  padding: 0 0.5rem;
+}
+
+.name-input:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-accent-alpha-35);
+}
+
+.row-actions {
+  position: relative;
+  display: inline-flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--color-ink);
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.icon-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-accent-alpha-35);
+}
+
+.row-menu {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  z-index: 10;
+  min-width: 9rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 24px var(--color-shadow-soft);
+  padding: 0.25rem;
+}
+
+.menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  color: var(--color-ink);
+}
+
+.menu-item:hover {
+  background: var(--color-accent-alpha-10);
+}
+
+.menu-item.danger {
+  color: #b91c1c;
+}
+
+.pending-row {
+  background: var(--color-accent-alpha-10);
+}
+
+.save-button {
+  border-color: var(--color-accent-alpha-35);
+}
+
+.order-cell-content:active {
+  cursor: grabbing;
+}
+
+.cdk-drop-list-dragging .exercise-row:not(.cdk-drag-placeholder) {
+  transition: transform 180ms ease;
+}
+
+.exercise-row.cdk-drag-preview {
+  box-sizing: border-box;
+  background: var(--color-surface-raised);
+  box-shadow: 0 12px 26px var(--color-shadow-soft);
+}
+
+.exercise-row.cdk-drag-placeholder {
+  opacity: 1;
+  background: var(--color-accent-alpha-18);
+  outline: 2px dashed var(--color-accent-alpha-65);
+  outline-offset: -2px;
+}

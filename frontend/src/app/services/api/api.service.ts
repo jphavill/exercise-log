@@ -28,6 +28,10 @@ export class ApiService {
     return this.http.put<Exercise>(`/api/exercises/${id}`, payload);
   }
 
+  deleteExercise(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/exercises/${id}`);
+  }
+
   reorderExercises(payload: ReorderExercisesRequest): Observable<Exercise[]> {
     return this.http.put<Exercise[]>('/api/exercises/reorder', payload);
   }

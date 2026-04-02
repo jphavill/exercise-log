@@ -1,5 +1,7 @@
+from datetime import UTC, datetime
+
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.models.exercise import Exercise
@@ -12,7 +14,11 @@ from app.schemas.exercise import (
 
 
 def list_exercises(db: Session) -> list[ExerciseResponse]:
-    items = db.scalars(select(Exercise).order_by(Exercise.sort_order, Exercise.name)).all()
+    items = db.scalars(
+        select(Exercise)
+        .where(Exercise.deleted_at.is_(None))
+        .order_by(Exercise.sort_order, Exercise.name)
+    ).all()
     return [ExerciseResponse.model_validate(item) for item in items]
 
 
@@ -34,7 +40,9 @@ def create_exercise(db: Session, payload: ExerciseCreateRequest) -> ExerciseResp
 
 
 def update_exercise(db: Session, exercise_id: int, payload: ExerciseUpdateRequest) -> ExerciseResponse:
-    exercise = db.get(Exercise, exercise_id)
+    exercise = db.scalar(
+        select(Exercise).where(and_(Exercise.id == exercise_id, Exercise.deleted_at.is_(None)))
+    )
     if not exercise:
         raise HTTPException(status_code=404, detail="exercise not found")
 
@@ -49,7 +57,9 @@ def update_exercise(db: Session, exercise_id: int, payload: ExerciseUpdateReques
 
 def reorder_exercises(db: Session, payload: ReorderExercisesRequest) -> list[ExerciseResponse]:
     ids = [item.id for item in payload.items]
-    exercises = db.scalars(select(Exercise).where(Exercise.id.in_(ids))).all()
+    exercises = db.scalars(
+        select(Exercise).where(and_(Exercise.id.in_(ids), Exercise.deleted_at.is_(None)))
+    ).all()
     if len(exercises) != len(ids):
         raise HTTPException(status_code=404, detail="one or more exercises not found")
 
@@ -59,3 +69,14 @@ def reorder_exercises(db: Session, payload: ReorderExercisesRequest) -> list[Exe
 
     db.commit()
     return list_exercises(db)
+
+
+def soft_delete_exercise(db: Session, exercise_id: int) -> None:
+    exercise = db.scalar(
+        select(Exercise).where(and_(Exercise.id == exercise_id, Exercise.deleted_at.is_(None)))
+    )
+    if not exercise:
+        raise HTTPException(status_code=404, detail="exercise not found")
+
+    exercise.deleted_at = datetime.now(UTC)
+    db.commit()

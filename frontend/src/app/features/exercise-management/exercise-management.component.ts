@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { NgIconComponent } from '@ng-icons/core';
@@ -22,11 +22,9 @@ import { ApiService } from '../../services/api/api.service';
 export class ExerciseManagementComponent implements OnInit {
   exercises: Exercise[] = [];
   message = '';
+  openMenuExerciseId: number | null = null;
+  pendingExercise: { name: string; metric_type: MetricType } | null = null;
   private autosaveTimers = new Map<number, ReturnType<typeof setTimeout>>();
-  draft: Omit<CreateExerciseRequest, 'sort_order' | 'slug'> = {
-    name: '',
-    metric_type: 'reps',
-  };
 
   constructor(private readonly api: ApiService) {}
 
@@ -38,20 +36,63 @@ export class ExerciseManagementComponent implements OnInit {
     this.api.getExercises().subscribe((items) => (this.exercises = items));
   }
 
-  addExercise(): void {
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.openMenuExerciseId = null;
+  }
+
+  toggleMenu(exerciseId: number, event: MouseEvent): void {
+    event.stopPropagation();
+    this.openMenuExerciseId = this.openMenuExerciseId === exerciseId ? null : exerciseId;
+  }
+
+  onMenuClick(event: MouseEvent): void {
+    event.stopPropagation();
+  }
+
+  addPendingExerciseRow(): void {
+    this.openMenuExerciseId = null;
+    if (this.pendingExercise) {
+      return;
+    }
+
+    this.pendingExercise = {
+      name: '',
+      metric_type: 'reps',
+    };
+  }
+
+  savePendingExercise(): void {
+    if (!this.pendingExercise || !this.pendingExercise.name.trim()) {
+      return;
+    }
+
+    const name = this.pendingExercise.name.trim();
     const payload: CreateExerciseRequest = {
-      ...this.draft,
-      slug: this.buildSlug(this.draft.name),
+      ...this.pendingExercise,
+      name,
+      slug: this.buildSlug(name),
       sort_order: this.getNextSortOrder(),
     };
 
     this.api.createExercise(payload).subscribe({
       next: () => {
         this.message = 'Exercise created';
-        this.draft = { name: '', metric_type: 'reps' as MetricType };
+        this.pendingExercise = null;
         this.refresh();
       },
       error: () => (this.message = 'Failed to create exercise'),
+    });
+  }
+
+  deleteExercise(exerciseId: number): void {
+    this.openMenuExerciseId = null;
+    this.api.deleteExercise(exerciseId).subscribe({
+      next: () => {
+        this.message = 'Exercise deleted';
+        this.refresh();
+      },
+      error: () => (this.message = 'Failed to delete exercise'),
     });
   }
 

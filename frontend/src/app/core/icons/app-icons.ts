@@ -4,12 +4,14 @@ import {
   lucideCalendarDays,
   lucideClock,
   lucideDumbbell,
+  lucideEllipsisVertical,
   lucideHash,
   lucideHistory,
   lucideLayoutDashboard,
   lucidePlus,
   lucideSave,
   lucideTable,
+  lucideTrash2,
   lucideTrendingUp,
 } from '@ng-icons/lucide';
 
@@ -27,4 +29,6 @@ export const appIcons = {
   actionSave: lucideSave,
   actionReorder: lucideArrowUpDown,
   actionAdd: lucidePlus,
+  actionMore: lucideEllipsisVertical,
+  actionDelete: lucideTrash2,
 };

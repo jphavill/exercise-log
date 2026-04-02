@@ -1,6 +1,7 @@
 import enum
+from datetime import datetime
 
-from sqlalchemy import Enum, Integer, String
+from sqlalchemy import DateTime, Enum, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -27,5 +28,6 @@ class Exercise(Base):
         nullable=False,
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     logs = relationship("ExerciseLog", back_populates="exercise", cascade="all, delete-orphan")
