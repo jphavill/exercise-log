@@ -11,7 +11,7 @@ usage() {
   printf 'Deploy flow:\n'
   printf '  1) git pull --ff-only origin main\n'
   printf '  2) frontend tests (node:22-alpine container)\n'
-  printf '  3) backend tests (backend service container)\n'
+  printf '  3) backend tests (backend container with sqlite)\n'
   printf '  4) postgres backup to %s\n' "$BACKUP_DIR"
   printf '  5) remove backups older than 14 days\n'
   printf '  6) docker compose down/build\n'
@@ -111,10 +111,10 @@ log "Running frontend tests in Docker"
 run_in_dir "$REPO_ROOT" docker run --rm -v "$REPO_ROOT/frontend:/app" -w /app node:22-alpine sh -lc "npm ci && npm test"
 
 log "Running backend tests in Docker"
-run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d postgres
-run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml run --rm backend pytest
+run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml run --rm -e DATABASE_URL=sqlite:////tmp/deploy-test.sqlite3 -e AUTO_SEED=false backend pytest
 
 log "Creating database backup"
+run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d postgres
 run_cmd mkdir -p "$BACKUP_DIR"
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml exec -T postgres sh -lc "pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Fc -f \"$CONTAINER_BACKUP_PATH\""
 POSTGRES_CONTAINER_ID="$(docker compose -f "$REPO_ROOT/docker-compose.yml" ps -q postgres)"
