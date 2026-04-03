@@ -15,6 +15,35 @@
   text-align: right;
 }
 
+.goal-cell {
+  width: 8.5rem;
+}
+
+.metric-cell {
+  width: 8.5rem;
+}
+
+.goal-empty-dash {
+  display: block;
+  text-align: left;
+  color: var(--color-ink-soft);
+}
+
+.goal-input {
+  width: 100%;
+  min-height: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-raised);
+  padding: 0 0.5rem;
+}
+
+.goal-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
 .manage-table .exercise-row {
   height: 3rem;
 }

@@ -14,6 +14,7 @@ logs:
 
 rebuild:
 	$(COMPOSE_LOCAL) up -d --build
+	$(MAKE) migrate
 
 rebuild-backend:
 	$(COMPOSE_LOCAL) up -d --build backend

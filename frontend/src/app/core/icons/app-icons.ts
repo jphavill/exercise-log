@@ -13,6 +13,7 @@ import {
   lucideTable,
   lucideTrash2,
   lucideTrendingUp,
+  lucideX,
 } from '@ng-icons/lucide';
 
 export const appIcons = {
@@ -30,5 +31,6 @@ export const appIcons = {
   actionReorder: lucideArrowUpDown,
   actionAdd: lucidePlus,
   actionMore: lucideEllipsisVertical,
+  actionClear: lucideX,
   actionDelete: lucideTrash2,
 };

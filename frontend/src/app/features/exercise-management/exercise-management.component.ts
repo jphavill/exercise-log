@@ -23,7 +23,14 @@ export class ExerciseManagementComponent implements OnInit {
   exercises: Exercise[] = [];
   message = '';
   openMenuExerciseId: number | null = null;
-  pendingExercise: { name: string; metric_type: MetricType } | null = null;
+  goalEditExerciseId: number | null = null;
+  pendingExercise: {
+    name: string;
+    metric_type: MetricType;
+    goal_reps: number | null;
+    goal_duration_seconds: number | null;
+    goal_weight_lbs: number | null;
+  } | null = null;
   private autosaveTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
   constructor(private readonly api: ApiService) {}
@@ -59,11 +66,14 @@ export class ExerciseManagementComponent implements OnInit {
     this.pendingExercise = {
       name: '',
       metric_type: 'reps',
+      goal_reps: null,
+      goal_duration_seconds: null,
+      goal_weight_lbs: null,
     };
   }
 
   savePendingExercise(): void {
-    if (!this.pendingExercise || !this.pendingExercise.name.trim()) {
+    if (!this.pendingExercise || !this.pendingExercise.name.trim() || !this.hasValidGoal(this.pendingExercise)) {
       return;
     }
 
@@ -97,12 +107,16 @@ export class ExerciseManagementComponent implements OnInit {
   }
 
   saveExercise(exercise: Exercise): void {
+    this.goalEditExerciseId = null;
     this.clearAutosaveTimer(exercise.id);
     this.api
       .updateExercise(exercise.id, {
         name: exercise.name,
         metric_type: exercise.metric_type,
         sort_order: exercise.sort_order,
+        goal_reps: exercise.goal_reps,
+        goal_duration_seconds: exercise.goal_duration_seconds,
+        goal_weight_lbs: exercise.goal_weight_lbs,
       })
       .subscribe({
         next: (updated) => {
@@ -129,7 +143,64 @@ export class ExerciseManagementComponent implements OnInit {
     }
 
     exercise.metric_type = metricType;
+    this.clearGoalFields(exercise);
+    this.goalEditExerciseId = null;
+    this.message = 'Metric changed. Set a new goal to save.';
+  }
+
+  showGoalInput(exercise: Exercise): boolean {
+    return this.goalEditExerciseId === exercise.id || this.hasGoal(exercise);
+  }
+
+  addGoal(exercise: Exercise): void {
+    this.goalEditExerciseId = exercise.id;
+    this.openMenuExerciseId = null;
+  }
+
+  clearGoal(exercise: Exercise): void {
+    this.openMenuExerciseId = null;
+    this.goalEditExerciseId = null;
+    this.clearGoalFields(exercise);
     this.saveExercise(exercise);
+  }
+
+  updatePendingMetricType(metricType: MetricType): void {
+    if (!this.pendingExercise || this.pendingExercise.metric_type === metricType) {
+      return;
+    }
+
+    this.pendingExercise.metric_type = metricType;
+    this.clearGoalFields(this.pendingExercise);
+  }
+
+  hasValidGoal(exercise: {
+    metric_type: MetricType;
+    goal_reps: number | null;
+    goal_duration_seconds: number | null;
+    goal_weight_lbs: number | null;
+  }): boolean {
+    if (exercise.metric_type === 'reps') {
+      return (exercise.goal_reps ?? 0) > 0;
+    }
+    if (exercise.metric_type === 'duration_seconds') {
+      return (exercise.goal_duration_seconds ?? 0) > 0;
+    }
+    return (exercise.goal_reps ?? 0) > 0 && (exercise.goal_weight_lbs ?? 0) > 0;
+  }
+
+  hasGoal(exercise: {
+    metric_type: MetricType;
+    goal_reps: number | null;
+    goal_duration_seconds: number | null;
+    goal_weight_lbs: number | null;
+  }): boolean {
+    if (exercise.metric_type === 'reps') {
+      return exercise.goal_reps !== null;
+    }
+    if (exercise.metric_type === 'duration_seconds') {
+      return exercise.goal_duration_seconds !== null;
+    }
+    return exercise.goal_reps !== null || exercise.goal_weight_lbs !== null;
   }
 
   onDrop(event: CdkDragDrop<Exercise[]>): void {
@@ -180,5 +251,15 @@ export class ExerciseManagementComponent implements OnInit {
 
   private buildSlug(name: string): string {
     return name.toLowerCase().replaceAll(' ', '-');
+  }
+
+  private clearGoalFields(exercise: {
+    goal_reps: number | null;
+    goal_duration_seconds: number | null;
+    goal_weight_lbs: number | null;
+  }): void {
+    exercise.goal_reps = null;
+    exercise.goal_duration_seconds = null;
+    exercise.goal_weight_lbs = null;
   }
 }

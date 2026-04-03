@@ -16,7 +16,15 @@ describe('ApiService', () => {
     const response = Symbol('response');
     const http = { post: vi.fn().mockReturnValue(response) } as any;
     const service = new ApiService(http);
-    const payload = { slug: 'bench-press', name: 'Bench Press', metric_type: 'reps', sort_order: 1 };
+    const payload = {
+      slug: 'bench-press',
+      name: 'Bench Press',
+      metric_type: 'reps' as const,
+      sort_order: 1,
+      goal_reps: 40,
+      goal_duration_seconds: null,
+      goal_weight_lbs: null,
+    };
 
     expect(service.createExercise(payload)).toBe(response);
     expect(http.post).toHaveBeenCalledWith('/api/exercises', payload);
@@ -31,12 +39,26 @@ describe('ApiService', () => {
     } as any;
     const service = new ApiService(http);
 
-    service.updateExercise(7, { name: 'Bench', metric_type: 'reps', sort_order: 2 });
+    service.updateExercise(7, {
+      name: 'Bench',
+      metric_type: 'reps',
+      sort_order: 2,
+      goal_reps: 40,
+      goal_duration_seconds: null,
+      goal_weight_lbs: null,
+    });
     service.deleteExercise(7);
     service.getExerciseHistory('bench-press', 45);
     service.getRecentLogs(10);
 
-    expect(http.put).toHaveBeenCalledWith('/api/exercises/7', { name: 'Bench', metric_type: 'reps', sort_order: 2 });
+    expect(http.put).toHaveBeenCalledWith('/api/exercises/7', {
+      name: 'Bench',
+      metric_type: 'reps',
+      sort_order: 2,
+      goal_reps: 40,
+      goal_duration_seconds: null,
+      goal_weight_lbs: null,
+    });
     expect(http.delete).toHaveBeenCalledWith('/api/exercises/7');
     expect(http.get).toHaveBeenCalledWith('/api/exercises/bench-press/history?days=45');
     expect(http.get).toHaveBeenCalledWith('/api/logs/recent?limit=10');

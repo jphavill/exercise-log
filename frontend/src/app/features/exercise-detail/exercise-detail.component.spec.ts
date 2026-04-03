@@ -12,8 +12,11 @@ function createHistory(metricType: 'duration_seconds' | 'reps' = 'reps'): Exerci
       name: 'Plank',
       metric_type: metricType,
       sort_order: 1,
+      goal_reps: metricType === 'duration_seconds' ? null : 40,
+      goal_duration_seconds: metricType === 'duration_seconds' ? 40 : null,
+      goal_weight_lbs: null,
     },
-    days: [{ day: '2026-03-31', totals: { reps: 5, duration_seconds: 60 } }],
+    days: [{ day: '2026-03-31', totals: { reps: 5, duration_seconds: 60 }, goal_progress_value: 5 }],
     current_streak: 3,
     best_day: { day: '2026-03-30', totals: { reps: 10, duration_seconds: 120 } },
     all_time_total: { reps: 50, duration_seconds: 600 },
@@ -54,17 +57,13 @@ describe('ExerciseDetailComponent', () => {
     expect(component.formatTotals({ reps: 7, duration_seconds: 45 })).toBe('45 sec');
   });
 
-  it('computes trend bar percentages with clamping', () => {
+  it('toggles smoothed trend option', () => {
     const component = new ExerciseDetailComponent({} as any, {} as any);
-
-    expect(component.barPercent({ totals: { reps: 10, duration_seconds: 20 } })).toBe(0);
-
     component.history = createHistory('reps');
-    expect(component.barPercent({ totals: { reps: 0, duration_seconds: 20 } })).toBe(3);
-    expect(component.barPercent({ totals: { reps: 30, duration_seconds: 20 } })).toBe(100);
 
-    component.history = createHistory('duration_seconds');
-    expect(component.barPercent({ totals: { reps: 5, duration_seconds: 6 } })).toBe(24);
+    component.toggleSmoothedTrend();
+
+    expect(component.showSmoothedTrend).toBe(true);
   });
 
   it('formats logs from explicit metric type', () => {

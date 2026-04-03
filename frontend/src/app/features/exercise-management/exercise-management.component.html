@@ -4,7 +4,7 @@
 
   <table class="table manage-table">
     <thead>
-      <tr><th>Order</th><th>Name</th><th>Metric Type</th><th class="actions-header" aria-label="Row actions"></th></tr>
+      <tr><th>Order</th><th>Name</th><th class="metric-cell">Metric Type</th><th class="goal-cell">Goal</th><th class="actions-header" aria-label="Row actions"></th></tr>
     </thead>
     <tbody cdkDropList [cdkDropListData]="exercises" (cdkDropListDropped)="onDrop($event)">
       <tr
@@ -21,7 +21,7 @@
         <td class="name-cell" [title]="exercise.slug">
           <input class="name-input" type="text" [(ngModel)]="exercise.name" (ngModelChange)="queueExerciseAutosave(exercise)" [title]="exercise.slug" />
         </td>
-        <td>
+        <td class="metric-cell">
           <div class="metric-toggle" role="group" aria-label="Metric type">
             <button
               type="button"
@@ -55,6 +55,57 @@
             </button>
           </div>
         </td>
+        <td class="goal-cell">
+          <ng-container *ngIf="showGoalInput(exercise); else noGoalTemplate" [ngSwitch]="exercise.metric_type">
+            <input
+              *ngSwitchCase="'reps'"
+              class="goal-input"
+              type="number"
+              min="1"
+              step="1"
+              [(ngModel)]="exercise.goal_reps"
+              (ngModelChange)="queueExerciseAutosave(exercise)"
+              placeholder="Reps"
+              aria-label="Goal reps"
+            />
+            <input
+              *ngSwitchCase="'duration_seconds'"
+              class="goal-input"
+              type="number"
+              min="1"
+              step="1"
+              [(ngModel)]="exercise.goal_duration_seconds"
+              (ngModelChange)="queueExerciseAutosave(exercise)"
+              placeholder="Seconds"
+              aria-label="Goal duration seconds"
+            />
+            <div *ngSwitchCase="'reps_plus_weight_lbs'" class="goal-pair">
+              <input
+                class="goal-input"
+                type="number"
+                min="1"
+                step="1"
+                [(ngModel)]="exercise.goal_reps"
+                (ngModelChange)="queueExerciseAutosave(exercise)"
+                placeholder="Reps"
+                aria-label="Goal reps"
+              />
+              <input
+                class="goal-input"
+                type="number"
+                min="0.01"
+                step="0.01"
+                [(ngModel)]="exercise.goal_weight_lbs"
+                (ngModelChange)="queueExerciseAutosave(exercise)"
+                placeholder="Lbs"
+                aria-label="Goal weight lbs"
+              />
+            </div>
+          </ng-container>
+          <ng-template #noGoalTemplate>
+            <span class="goal-empty-dash" aria-hidden="true">-</span>
+          </ng-template>
+        </td>
         <td class="actions-cell">
           <div class="row-actions" (click)="onMenuClick($event)">
             <button
@@ -69,6 +120,14 @@
               <button type="button" class="menu-item" (click)="addPendingExerciseRow()">
                 <ng-icon name="actionAdd" aria-hidden="true"></ng-icon>
                 <span>Add row</span>
+              </button>
+              <button type="button" class="menu-item" *ngIf="!hasGoal(exercise)" (click)="addGoal(exercise)">
+                <ng-icon name="actionAdd" aria-hidden="true"></ng-icon>
+                <span>Add goal</span>
+              </button>
+              <button type="button" class="menu-item" *ngIf="hasGoal(exercise)" (click)="clearGoal(exercise)">
+                <ng-icon name="actionClear" aria-hidden="true"></ng-icon>
+                <span>Clear goal</span>
               </button>
               <button type="button" class="menu-item danger" (click)="deleteExercise(exercise.id)">
                 <ng-icon name="actionDelete" aria-hidden="true"></ng-icon>
@@ -87,13 +146,13 @@
         <td class="name-cell" title="New exercise">
           <input class="name-input" type="text" [(ngModel)]="pendingExercise.name" placeholder="Exercise name" />
         </td>
-        <td>
+        <td class="metric-cell">
           <div class="metric-toggle" role="group" aria-label="Metric type">
             <button
               type="button"
               class="metric-option"
               [class.selected]="pendingExercise.metric_type === 'duration_seconds'"
-              (click)="pendingExercise.metric_type = 'duration_seconds'"
+              (click)="updatePendingMetricType('duration_seconds')"
               aria-label="Duration (seconds)"
               title="Duration (seconds)"
             >
@@ -103,7 +162,7 @@
               type="button"
               class="metric-option"
               [class.selected]="pendingExercise.metric_type === 'reps'"
-              (click)="pendingExercise.metric_type = 'reps'"
+              (click)="updatePendingMetricType('reps')"
               aria-label="Reps"
               title="Reps"
             >
@@ -113,7 +172,7 @@
               type="button"
               class="metric-option"
               [class.selected]="pendingExercise.metric_type === 'reps_plus_weight_lbs'"
-              (click)="pendingExercise.metric_type = 'reps_plus_weight_lbs'"
+              (click)="updatePendingMetricType('reps_plus_weight_lbs')"
               aria-label="Reps plus weight (lbs)"
               title="Reps plus weight (lbs)"
             >
@@ -121,12 +180,39 @@
             </button>
           </div>
         </td>
+        <td class="goal-cell">
+          <ng-container [ngSwitch]="pendingExercise.metric_type">
+            <input *ngSwitchCase="'reps'" class="goal-input" type="number" min="1" step="1" [(ngModel)]="pendingExercise.goal_reps" placeholder="Reps" aria-label="Goal reps" />
+            <input
+              *ngSwitchCase="'duration_seconds'"
+              class="goal-input"
+              type="number"
+              min="1"
+              step="1"
+              [(ngModel)]="pendingExercise.goal_duration_seconds"
+              placeholder="Seconds"
+              aria-label="Goal duration seconds"
+            />
+            <div *ngSwitchCase="'reps_plus_weight_lbs'" class="goal-pair">
+              <input class="goal-input" type="number" min="1" step="1" [(ngModel)]="pendingExercise.goal_reps" placeholder="Reps" aria-label="Goal reps" />
+              <input
+                class="goal-input"
+                type="number"
+                min="0.01"
+                step="0.01"
+                [(ngModel)]="pendingExercise.goal_weight_lbs"
+                placeholder="Lbs"
+                aria-label="Goal weight lbs"
+              />
+            </div>
+          </ng-container>
+        </td>
         <td class="actions-cell">
           <button
             type="button"
             class="icon-button save-button"
             aria-label="Save exercise"
-            [disabled]="!pendingExercise.name.trim()"
+            [disabled]="!pendingExercise.name.trim() || !hasValidGoal(pendingExercise)"
             (click)="savePendingExercise()"
           >
             <ng-icon name="actionSave" aria-hidden="true"></ng-icon>
@@ -134,7 +220,7 @@
         </td>
       </tr>
       <tr *ngIf="!exercises.length && !pendingExercise">
-        <td colspan="4" class="empty-table-cell">
+        <td colspan="5" class="empty-table-cell">
           <button type="button" class="button-with-icon" (click)="addPendingExerciseRow()">
             <ng-icon name="actionAdd" aria-hidden="true"></ng-icon>
             <span>Add first exercise</span>

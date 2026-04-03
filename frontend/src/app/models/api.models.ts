@@ -11,6 +11,9 @@ export interface Exercise {
   name: string;
   metric_type: MetricType;
   sort_order: number;
+  goal_reps: number | null;
+  goal_duration_seconds: number | null;
+  goal_weight_lbs: number | null;
 }
 
 export interface ExerciseLog {
@@ -37,13 +40,36 @@ export interface DashboardSummary {
   today: ExerciseTotalsItem[];
   current_week: ExerciseTotalsItem[];
   last_30_days: ExerciseTotalsItem[];
+  last_30_days_consistency: ExerciseConsistencyItem[];
   total_logs_today: number;
   total_logs_this_week: number;
+}
+
+export interface ConsistencyDayItem {
+  day: string;
+  totals: Totals;
+  progress_value: number;
+  intensity_level: 0 | 1 | 2 | 3 | 4;
+}
+
+export interface ExerciseConsistencyItem {
+  exercise_id: number;
+  exercise_slug: string;
+  exercise_name: string;
+  metric_type: MetricType;
+  window_totals: Totals;
+  active_days: number;
+  total_logs: number;
+  scaling_mode: 'goal' | 'relative';
+  goal_target_value: number | null;
+  goal_weight_lbs: number | null;
+  days: ConsistencyDayItem[];
 }
 
 export interface DailyTotalItem {
   day: string;
   totals: Totals;
+  goal_progress_value: number;
 }
 
 export interface ExerciseHistory {
@@ -63,12 +89,18 @@ export interface CreateExerciseRequest {
   name: string;
   metric_type: MetricType;
   sort_order: number;
+  goal_reps: number | null;
+  goal_duration_seconds: number | null;
+  goal_weight_lbs: number | null;
 }
 
 export interface UpdateExerciseRequest {
   name: string;
   metric_type: MetricType;
   sort_order: number;
+  goal_reps: number | null;
+  goal_duration_seconds: number | null;
+  goal_weight_lbs: number | null;
 }
 
 export interface ReorderExercisesRequest {

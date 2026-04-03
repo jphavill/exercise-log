@@ -32,6 +32,9 @@ def create_exercise(db: Session, payload: ExerciseCreateRequest) -> ExerciseResp
         name=payload.name,
         metric_type=payload.metric_type,
         sort_order=payload.sort_order,
+        goal_reps=payload.goal_reps,
+        goal_duration_seconds=payload.goal_duration_seconds,
+        goal_weight_lbs=payload.goal_weight_lbs,
     )
     db.add(exercise)
     db.commit()
@@ -49,6 +52,9 @@ def update_exercise(db: Session, exercise_id: int, payload: ExerciseUpdateReques
     exercise.name = payload.name
     exercise.metric_type = payload.metric_type
     exercise.sort_order = payload.sort_order
+    exercise.goal_reps = payload.goal_reps
+    exercise.goal_duration_seconds = payload.goal_duration_seconds
+    exercise.goal_weight_lbs = payload.goal_weight_lbs
 
     db.commit()
     db.refresh(exercise)

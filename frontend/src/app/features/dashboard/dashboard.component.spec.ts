@@ -10,6 +10,7 @@ describe('DashboardComponent', () => {
       today: [],
       current_week: [],
       last_30_days: [],
+      last_30_days_consistency: [],
       total_logs_today: 0,
       total_logs_this_week: 0,
     };
@@ -72,11 +73,142 @@ describe('DashboardComponent', () => {
     ).toBe('60 sec');
   });
 
-  it('clamps trend bars between 5 and 100', () => {
+  it('returns top 6 consistency rows sorted by activity', () => {
     const component = new DashboardComponent({} as any);
+    component.summary = {
+      today: [],
+      current_week: [],
+      last_30_days: [],
+      total_logs_today: 0,
+      total_logs_this_week: 0,
+      last_30_days_consistency: [
+        {
+          exercise_id: 1,
+          exercise_slug: 'pullups',
+          exercise_name: 'Pullups',
+          metric_type: 'reps',
+          window_totals: { reps: 50, duration_seconds: null },
+          active_days: 5,
+          total_logs: 7,
+          scaling_mode: 'relative',
+          goal_target_value: null,
+          goal_weight_lbs: null,
+          days: [],
+        },
+        {
+          exercise_id: 2,
+          exercise_slug: 'plank',
+          exercise_name: 'Plank',
+          metric_type: 'duration_seconds',
+          window_totals: { reps: null, duration_seconds: 300 },
+          active_days: 8,
+          total_logs: 8,
+          scaling_mode: 'relative',
+          goal_target_value: null,
+          goal_weight_lbs: null,
+          days: [],
+        },
+        {
+          exercise_id: 3,
+          exercise_slug: 'squats',
+          exercise_name: 'Squats',
+          metric_type: 'reps',
+          window_totals: { reps: 100, duration_seconds: null },
+          active_days: 8,
+          total_logs: 6,
+          scaling_mode: 'relative',
+          goal_target_value: null,
+          goal_weight_lbs: null,
+          days: [],
+        },
+        {
+          exercise_id: 4,
+          exercise_slug: 'burpees',
+          exercise_name: 'Burpees',
+          metric_type: 'reps',
+          window_totals: { reps: 20, duration_seconds: null },
+          active_days: 2,
+          total_logs: 2,
+          scaling_mode: 'relative',
+          goal_target_value: null,
+          goal_weight_lbs: null,
+          days: [],
+        },
+        {
+          exercise_id: 5,
+          exercise_slug: 'situps',
+          exercise_name: 'Situps',
+          metric_type: 'reps',
+          window_totals: { reps: 25, duration_seconds: null },
+          active_days: 4,
+          total_logs: 4,
+          scaling_mode: 'relative',
+          goal_target_value: null,
+          goal_weight_lbs: null,
+          days: [],
+        },
+        {
+          exercise_id: 6,
+          exercise_slug: 'dips',
+          exercise_name: 'Dips',
+          metric_type: 'reps',
+          window_totals: { reps: 33, duration_seconds: null },
+          active_days: 3,
+          total_logs: 5,
+          scaling_mode: 'relative',
+          goal_target_value: null,
+          goal_weight_lbs: null,
+          days: [],
+        },
+        {
+          exercise_id: 7,
+          exercise_slug: 'rows',
+          exercise_name: 'Rows',
+          metric_type: 'reps',
+          window_totals: { reps: 15, duration_seconds: null },
+          active_days: 1,
+          total_logs: 1,
+          scaling_mode: 'relative',
+          goal_target_value: null,
+          goal_weight_lbs: null,
+          days: [],
+        },
+      ],
+    };
 
-    expect(component.barPercent({ metric_type: 'reps', totals: { reps: 0, duration_seconds: null } })).toBe(5);
-    expect(component.barPercent({ metric_type: 'reps', totals: { reps: 10, duration_seconds: null } })).toBe(40);
-    expect(component.barPercent({ metric_type: 'duration_seconds', totals: { reps: null, duration_seconds: 50 } })).toBe(100);
+    const rows = component.topConsistencyRows();
+
+    expect(rows).toHaveLength(6);
+    expect(rows.map((row) => row.exercise_slug)).toEqual(['plank', 'squats', 'pullups', 'situps', 'dips', 'burpees']);
+  });
+
+  it('maps heat cell class from API intensity level', () => {
+    const component = new DashboardComponent({} as any);
+    const row = {
+      exercise_id: 1,
+      exercise_slug: 'pullups',
+      exercise_name: 'Pullups',
+      metric_type: 'reps' as const,
+      window_totals: { reps: 17, duration_seconds: null },
+      active_days: 4,
+      total_logs: 4,
+      scaling_mode: 'goal' as const,
+      goal_target_value: 8,
+      goal_weight_lbs: null,
+      days: [
+        { day: '2026-01-01', totals: { reps: 0, duration_seconds: null }, progress_value: 0, intensity_level: 0 as const },
+        { day: '2026-01-02', totals: { reps: 1, duration_seconds: null }, progress_value: 1, intensity_level: 1 as const },
+        { day: '2026-01-03', totals: { reps: 3, duration_seconds: null }, progress_value: 3, intensity_level: 2 as const },
+        { day: '2026-01-04', totals: { reps: 5, duration_seconds: null }, progress_value: 5, intensity_level: 3 as const },
+        { day: '2026-01-05', totals: { reps: 8, duration_seconds: null }, progress_value: 8, intensity_level: 4 as const },
+      ],
+    };
+
+    expect(component.heatLevelClass(row, row.days[0])).toBe('level-0');
+    expect(component.heatLevelClass(row, row.days[1])).toBe('level-1');
+    expect(component.heatLevelClass(row, row.days[2])).toBe('level-2');
+    expect(component.heatLevelClass(row, row.days[3])).toBe('level-3');
+    expect(component.heatLevelClass(row, row.days[4])).toBe('level-4');
+    expect(component.heatCellTitle(row, row.days[4])).toContain('8 reps');
   });
 });

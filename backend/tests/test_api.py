@@ -54,7 +54,55 @@ def test_dashboard_summary_output(client):
     body = response.json()
     assert "today" in body
     assert "current_week" in body
+    assert "last_30_days_consistency" in body
     assert body["total_logs_today"] >= 2
+
+
+def test_dashboard_summary_consistency_rows_have_30_days(client):
+    client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 5})
+
+    response = client.get("/api/dashboard/summary")
+    assert response.status_code == 200
+    body = response.json()
+    pullups = next(item for item in body["last_30_days_consistency"] if item["exercise_slug"] == "pullups")
+    assert len(pullups["days"]) == 30
+    assert pullups["active_days"] >= 1
+
+
+def test_dashboard_summary_goal_scaled_intensity_uses_medium_range(client):
+    client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 36})
+
+    response = client.get("/api/dashboard/summary")
+    assert response.status_code == 200
+    body = response.json()
+    pullups = next(item for item in body["last_30_days_consistency"] if item["exercise_slug"] == "pullups")
+    today = pullups["days"][-1]
+
+    assert pullups["scaling_mode"] == "goal"
+    assert pullups["goal_target_value"] == 40
+    assert today["progress_value"] == 36
+    assert today["intensity_level"] == 2
+
+
+def test_dashboard_summary_goal_scaled_intensity_supports_high_and_peak(client):
+    client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 60})
+
+    high_response = client.get("/api/dashboard/summary")
+    assert high_response.status_code == 200
+    high_pullups = next(
+        item for item in high_response.json()["last_30_days_consistency"] if item["exercise_slug"] == "pullups"
+    )
+    assert high_pullups["days"][-1]["intensity_level"] == 3
+
+    client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 20})
+
+    peak_response = client.get("/api/dashboard/summary")
+    assert peak_response.status_code == 200
+    peak_pullups = next(
+        item for item in peak_response.json()["last_30_days_consistency"] if item["exercise_slug"] == "pullups"
+    )
+    assert peak_pullups["days"][-1]["progress_value"] == 80
+    assert peak_pullups["days"][-1]["intensity_level"] == 4
 
 
 def test_history_endpoint_output(client):
@@ -65,6 +113,7 @@ def test_history_endpoint_output(client):
     assert body["exercise"]["slug"] == "pullups"
     assert len(body["days"]) == 30
     assert "current_streak" in body
+    assert body["exercise"]["goal_reps"] == 40
 
 
 def test_create_exercise_endpoint(client):
@@ -75,10 +124,27 @@ def test_create_exercise_endpoint(client):
             "name": "Dead Hang",
             "metric_type": "duration_seconds",
             "sort_order": 5,
+            "goal_reps": None,
+            "goal_duration_seconds": 40,
+            "goal_weight_lbs": None,
         },
     )
     assert response.status_code == 201
     assert response.json()["slug"] == "dead-hang"
+
+
+def test_weighted_history_goal_progress_uses_goal_weight_or_higher(client):
+    client.post("/api/logs", json={"exercise_slug": "weighted-pullups", "reps": 4, "weight_lbs": 10})
+    client.post("/api/logs", json={"exercise_slug": "weighted-pullups", "reps": 6, "weight_lbs": 15})
+    client.post("/api/logs", json={"exercise_slug": "weighted-pullups", "reps": 8, "weight_lbs": 20})
+
+    response = client.get("/api/exercises/weighted-pullups/history?days=1")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["exercise"]["goal_reps"] == 40
+    assert body["exercise"]["goal_weight_lbs"] == 15
+    assert body["days"][0]["totals"]["reps"] == 18
+    assert body["days"][0]["goal_progress_value"] == 14
 
 
 def test_update_exercise_endpoint(client):
@@ -87,12 +153,41 @@ def test_update_exercise_endpoint(client):
 
     response = client.put(
         f"/api/exercises/{target['id']}",
-        json={"name": "Updated Name", "metric_type": target["metric_type"], "sort_order": 9},
+        json={
+            "name": "Updated Name",
+            "metric_type": target["metric_type"],
+            "sort_order": 9,
+            "goal_reps": target["goal_reps"],
+            "goal_duration_seconds": target["goal_duration_seconds"],
+            "goal_weight_lbs": target["goal_weight_lbs"],
+        },
     )
     assert response.status_code == 200
     body = response.json()
     assert body["name"] == "Updated Name"
     assert body["sort_order"] == 9
+
+
+def test_update_exercise_endpoint_allows_clearing_goal(client):
+    exercises = client.get("/api/exercises").json()
+    target = exercises[0]
+
+    response = client.put(
+        f"/api/exercises/{target['id']}",
+        json={
+            "name": target["name"],
+            "metric_type": target["metric_type"],
+            "sort_order": target["sort_order"],
+            "goal_reps": None,
+            "goal_duration_seconds": None,
+            "goal_weight_lbs": None,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["goal_reps"] is None
+    assert body["goal_duration_seconds"] is None
+    assert body["goal_weight_lbs"] is None
 
 
 def test_reorder_exercises_endpoint(client):

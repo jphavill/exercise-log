@@ -9,8 +9,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@angular/cdk": "^19.2.0",
     "@angular/animations": "^19.2.0",
+    "@angular/cdk": "^19.2.0",
     "@angular/common": "^19.2.0",
     "@angular/compiler": "^19.2.0",
     "@angular/core": "^19.2.0",
@@ -21,6 +21,7 @@
     "@ng-icons/core": "^29.10.0",
     "@ng-icons/game-icons": "^29.10.0",
     "@ng-icons/lucide": "^29.10.0",
+    "echarts": "^6.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"

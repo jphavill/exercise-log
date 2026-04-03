@@ -15,10 +15,32 @@ class ExerciseTotalsItem(BaseModel):
     totals: Totals
 
 
+class ConsistencyDayItem(BaseModel):
+    day: date
+    totals: Totals
+    progress_value: int
+    intensity_level: int
+
+
+class ExerciseConsistencyItem(BaseModel):
+    exercise_id: int
+    exercise_slug: str
+    exercise_name: str
+    metric_type: MetricType
+    window_totals: Totals
+    active_days: int
+    total_logs: int
+    scaling_mode: str
+    goal_target_value: int | None
+    goal_weight_lbs: float | None
+    days: list[ConsistencyDayItem]
+
+
 class DashboardSummaryResponse(BaseModel):
     today: list[ExerciseTotalsItem]
     current_week: list[ExerciseTotalsItem]
     last_30_days: list[ExerciseTotalsItem]
+    last_30_days_consistency: list[ExerciseConsistencyItem]
     total_logs_today: int
     total_logs_this_week: int
 
@@ -26,6 +48,7 @@ class DashboardSummaryResponse(BaseModel):
 class DailyTotalItem(BaseModel):
     day: date
     totals: Totals
+    goal_progress_value: int
 
 
 class BestDay(BaseModel):
@@ -38,6 +61,10 @@ class ExerciseMeta(BaseModel):
     slug: str
     name: str
     metric_type: MetricType
+    sort_order: int
+    goal_reps: int | None
+    goal_duration_seconds: int | None
+    goal_weight_lbs: float | None
 
 
 class ExerciseHistoryResponse(BaseModel):
