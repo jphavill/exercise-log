@@ -14,8 +14,11 @@ usage() {
   printf '  3) backend tests (backend service container)\n'
   printf '  4) postgres backup to %s\n' "$BACKUP_DIR"
   printf '  5) remove backups older than 14 days\n'
-  printf '  6) docker compose down/build/up\n'
-  printf '  7) seed default exercises\n'
+  printf '  6) docker compose down/build\n'
+  printf '  7) start postgres\n'
+  printf '  8) run migrations\n'
+  printf '  9) seed default exercises\n'
+  printf ' 10) start backend/frontend/caddy\n'
 }
 
 log() {
@@ -129,10 +132,18 @@ run_cmd find "$BACKUP_DIR" -maxdepth 1 -type f -name 'exercise_data_backup_*.dum
 log "Deploying production stack"
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml down
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml build
-run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d --remove-orphans
+
+log "Starting postgres"
+run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d postgres
+
+log "Running migrations"
+run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml run --rm backend alembic -c alembic.ini upgrade head
 
 log "Seeding default exercises"
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml run --rm backend python seed.py
+
+log "Starting application services"
+run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d --remove-orphans backend frontend caddy
 
 log "Deploy complete"
 printf 'Backup created: %s\n' "$FINAL_BACKUP_PATH"
