@@ -4,7 +4,7 @@
 
   <table class="table manage-table">
     <thead>
-      <tr><th>Order</th><th>Name</th><th class="metric-cell">Metric Type</th><th class="goal-cell">Goal</th><th class="actions-header" aria-label="Row actions"></th></tr>
+      <tr><th class="order-header">Order</th><th>Name</th><th class="metric-cell">Metric</th><th class="goal-cell">Goal</th><th class="actions-header" aria-label="Row actions"></th></tr>
     </thead>
     <tbody cdkDropList [cdkDropListData]="exercises" (cdkDropListDropped)="onDrop($event)">
       <tr
@@ -13,7 +13,7 @@
         class="exercise-row"
       >
         <td class="order-cell">
-          <div class="order-cell-content" cdkDragHandle>
+          <div class="order-cell-content" cdkDragHandle [cdkDragHandleDisabled]="isNarrowScreen">
             <ng-icon name="actionReorder" aria-hidden="true"></ng-icon>
             <span>{{ index + 1 }}</span>
           </div>

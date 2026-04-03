@@ -1,0 +1,16 @@
+<section class="section">
+  <h2 class="section-title"><ng-icon name="sectionToday" aria-hidden="true"></ng-icon><span>Daily &amp; Weekly Totals</span></h2>
+  <div class="card-grid" *ngIf="summary">
+    <a class="card metric-card" *ngFor="let item of dashboardCards()" [routerLink]="['/exercise', item.exercise_slug]">
+      <strong>{{ item.exercise_name }}</strong>
+      <span class="metric-row">
+        <span class="metric-label">Today</span>
+        <span>{{ metricValue(item.metric_type, item.today_totals.reps, item.today_totals.duration_seconds) }}</span>
+      </span>
+      <span class="metric-row">
+        <span class="metric-label">Week</span>
+        <span>{{ metricValue(item.metric_type, item.week_totals.reps, item.week_totals.duration_seconds) }}</span>
+      </span>
+    </a>
+  </div>
+</section>

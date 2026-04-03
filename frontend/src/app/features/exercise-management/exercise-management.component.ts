@@ -22,6 +22,7 @@ import { ApiService } from '../../services/api/api.service';
 export class ExerciseManagementComponent implements OnInit {
   exercises: Exercise[] = [];
   message = '';
+  isNarrowScreen = false;
   openMenuExerciseId: number | null = null;
   goalEditExerciseId: number | null = null;
   pendingExercise: {
@@ -36,7 +37,13 @@ export class ExerciseManagementComponent implements OnInit {
   constructor(private readonly api: ApiService) {}
 
   ngOnInit(): void {
+    this.updateScreenSize();
     this.refresh();
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateScreenSize();
   }
 
   refresh(): void {
@@ -261,5 +268,9 @@ export class ExerciseManagementComponent implements OnInit {
     exercise.goal_reps = null;
     exercise.goal_duration_seconds = null;
     exercise.goal_weight_lbs = null;
+  }
+
+  private updateScreenSize(): void {
+    this.isNarrowScreen = window.innerWidth < 600;
   }
 }

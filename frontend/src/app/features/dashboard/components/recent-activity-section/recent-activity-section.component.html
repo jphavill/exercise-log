@@ -1,0 +1,25 @@
+<section class="section">
+  <h2 class="section-title"><ng-icon name="sectionRecent" aria-hidden="true"></ng-icon><span>Recent Activity</span></h2>
+  <div class="feed" *ngIf="recent.length; else emptyLogs">
+    <div class="feed-item" *ngFor="let log of recent">
+      <span class="feed-text">{{ log.exercise_name }} - {{ formatRecent(log) }} - {{ log.logged_at | date: 'shortTime' }}</span>
+      <div class="row-actions" (click)="onMenuClick($event)">
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Exercise actions"
+          (click)="onToggleClick(log.id, $event)"
+        >
+          <ng-icon name="actionMore" aria-hidden="true"></ng-icon>
+        </button>
+        <div class="row-menu" *ngIf="openMenuLogId === log.id">
+          <button type="button" class="menu-item danger" (click)="onDeleteClick(log.id, $event)">
+            <ng-icon name="actionDelete" aria-hidden="true"></ng-icon>
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ng-template #emptyLogs><p>No logs yet.</p></ng-template>
+</section>

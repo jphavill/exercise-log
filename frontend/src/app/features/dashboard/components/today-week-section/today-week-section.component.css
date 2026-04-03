@@ -1,0 +1,16 @@
+.metric-card {
+  gap: 0.35rem;
+}
+
+.metric-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.metric-label {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+}

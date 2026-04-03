@@ -179,3 +179,18 @@
   outline: 2px dashed var(--color-accent-alpha-65);
   outline-offset: -2px;
 }
+
+@media (max-width: 599px) {
+  .manage-table .order-header,
+  .manage-table .order-cell {
+    display: none;
+  }
+
+  .manage-table .exercise-row.cdk-drag {
+    cursor: grab;
+  }
+
+  .manage-table .exercise-row.cdk-drag:active {
+    cursor: grabbing;
+  }
+}

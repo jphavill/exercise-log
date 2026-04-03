@@ -1,0 +1,26 @@
+<section class="section" *ngIf="summary">
+  <h2 class="section-title"><ng-icon name="sectionTrends" aria-hidden="true"></ng-icon><span>Consistency</span></h2>
+  <div class="consistency-legend" aria-label="Intensity legend">
+    <span class="legend-label">None</span>
+    <span class="legend-gradient" aria-hidden="true"></span>
+    <span class="legend-label">Peak</span>
+  </div>
+  <div class="consistency-list" *ngIf="topConsistencyRows() as rows">
+    <div class="consistency-row" *ngFor="let item of rows">
+      <div class="consistency-label">
+        <strong>{{ item.exercise_name }}</strong>
+        <span>{{ metricTotal(item) }} - {{ item.active_days }} active days</span>
+      </div>
+      <div class="consistency-strip" [attr.aria-label]="item.exercise_name + ' activity in last 30 days'">
+        <span
+          *ngFor="let day of item.days; trackBy: trackByDay"
+          class="heat-cell"
+          [ngClass]="heatLevelClass(item, day)"
+          [attr.aria-label]="heatCellTitle(item, day)"
+          [attr.title]="heatCellTitle(item, day)"
+        ></span>
+      </div>
+    </div>
+    <p *ngIf="!rows.length">No activity in the last 30 days.</p>
+  </div>
+</section>
