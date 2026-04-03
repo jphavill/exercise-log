@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -18,12 +19,14 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-metric_type_enum = sa.Enum(
-    "duration_seconds", "reps", "reps_plus_weight_lbs", name="metric_type_enum"
+metric_type_enum = postgresql.ENUM(
+    "duration_seconds", "reps", "reps_plus_weight_lbs", name="metric_type_enum", create_type=False
 )
 
 
 def upgrade() -> None:
+    metric_type_enum.create(op.get_bind(), checkfirst=True)
+
     op.create_table(
         "exercises",
         sa.Column("id", sa.Integer(), nullable=False),
