@@ -155,3 +155,22 @@ def test_deleted_exercise_hidden_from_dashboard_and_recent(client):
     recent = client.get("/api/logs/recent?limit=20")
     assert recent.status_code == 200
     assert all(item["exercise_slug"] != "pullups" for item in recent.json())
+
+
+def test_delete_log_hard_delete_removes_individual_entry(client):
+    create_response = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 5})
+    assert create_response.status_code == 200
+    log_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/api/logs/{log_id}")
+    assert delete_response.status_code == 204
+
+    recent = client.get("/api/logs/recent?limit=20")
+    assert recent.status_code == 200
+    remaining_ids = {item["id"] for item in recent.json()}
+    assert log_id not in remaining_ids
+
+
+def test_delete_missing_log_returns_404(client):
+    response = client.delete("/api/logs/999999")
+    assert response.status_code == 404

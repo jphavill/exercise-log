@@ -92,3 +92,12 @@ def get_recent_logs(db: Session, limit: int) -> list[RecentLogItem]:
         )
         for row in rows
     ]
+
+
+def hard_delete_log(db: Session, log_id: int) -> None:
+    log = db.scalar(select(ExerciseLog).where(ExerciseLog.id == log_id))
+    if not log:
+        raise HTTPException(status_code=404, detail="log not found")
+
+    db.delete(log)
+    db.commit()

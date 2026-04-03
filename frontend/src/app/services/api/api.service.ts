@@ -47,4 +47,8 @@ export class ApiService {
   getRecentLogs(limit = 50): Observable<ExerciseLog[]> {
     return this.http.get<ExerciseLog[]>(`/api/logs/recent?limit=${limit}`);
   }
+
+  deleteLog(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/logs/${id}`);
+  }
 }
