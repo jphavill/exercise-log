@@ -5,6 +5,7 @@ import {
   lucideClock,
   lucideDumbbell,
   lucideEllipsisVertical,
+  lucideGithub,
   lucideHash,
   lucideHistory,
   lucideLayoutDashboard,
@@ -33,4 +34,5 @@ export const appIcons = {
   actionMore: lucideEllipsisVertical,
   actionClear: lucideX,
   actionDelete: lucideTrash2,
+  brandGithub: lucideGithub,
 };

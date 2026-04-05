@@ -15,6 +15,13 @@ body {
   max-width: 1100px;
   margin: 0 auto;
   padding: 1rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
 }
 
 .topbar {
@@ -45,6 +52,35 @@ body {
 
 .topbar a.active {
   background: var(--color-accent-soft);
+  color: var(--color-nav-active-text);
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.footer-value {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-decoration: none;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.footer-link:hover {
   color: var(--color-nav-active-text);
 }
 
@@ -200,5 +236,10 @@ ng-icon {
 @media (max-width: 700px) {
   .trend-list {
     grid-template-columns: 1fr;
+  }
+
+  .app-footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
