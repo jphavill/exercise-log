@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from app.api.dependencies import request_timezone
 from app.db.session import get_db
 from app.schemas.widget import PullupsWidgetResponse
-from app.services.dashboard_service import get_pullups_widget
+from app.services.widgets import get_pullups_widget
 
 router = APIRouter(prefix="/widgets", tags=["widgets"])
 

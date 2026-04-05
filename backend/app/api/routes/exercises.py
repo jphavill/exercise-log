@@ -11,7 +11,7 @@ from app.schemas.exercise import (
     ExerciseUpdateRequest,
     ReorderExercisesRequest,
 )
-from app.services.dashboard_service import get_exercise_history
+from app.services.dashboard import get_exercise_history
 from app.services.exercise_service import (
     create_exercise,
     list_exercises,

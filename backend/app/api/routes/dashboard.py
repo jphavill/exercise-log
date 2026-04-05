@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from app.api.dependencies import request_timezone
 from app.db.session import get_db
 from app.schemas.dashboard import DashboardSummaryResponse
-from app.services.dashboard_service import get_summary
+from app.services.dashboard import get_summary
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
