@@ -10,16 +10,18 @@
   <p *ngIf="history.best_day">Best day: {{ history.best_day.day }} ({{ formatTotals(history.best_day.totals) }})</p>
 
   <div class="section-title-row">
-    <h3 class="section-title"><ng-icon name="sectionTrends" aria-hidden="true"></ng-icon><span>Daily totals</span></h3>
+    <h3 class="section-title"><ng-icon name="sectionTrends" aria-hidden="true"></ng-icon><span>Daily Totals</span></h3>
     <button type="button" class="trend-toggle" [class.active]="showTrendLine" (click)="toggleTrendLine()">Trend</button>
   </div>
   <div class="chart-layout">
-    <div class="daily-chart" #dailyChart role="img" aria-label="Daily totals line chart with goal line"></div>
+    <div class="daily-chart" #dailyChart role="img" aria-label="Daily Totals line chart with goal line"></div>
   </div>
 
-  <h3 class="section-title"><ng-icon name="sectionRecent" aria-hidden="true"></ng-icon><span>Recent entries</span></h3>
-  <div class="feed-item" *ngFor="let log of history.recent_logs">
-    {{ formatLog(log) }} - {{ log.logged_at | date: 'short' }}
-  </div>
+  <app-recent-activity-section
+    [recent]="history.recent_logs"
+    [openMenuLogId]="openMenuLogId"
+    (toggleMenuLog)="toggleMenu($event)"
+    (deleteLogClick)="deleteLog($event)"
+  ></app-recent-activity-section>
 </section>
 <ng-template #loading><p>Loading...</p></ng-template>

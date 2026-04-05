@@ -69,10 +69,44 @@ describe('ExerciseDetailComponent', () => {
     expect(component.showTrendLine).toBe(true);
   });
 
-  it('formats logs from explicit metric type', () => {
-    const component = new ExerciseDetailComponent({} as any, {} as any, trendLineService);
+  it('removes a log after successful delete', () => {
+    const api = {
+      deleteLog: vi.fn().mockReturnValue(of(undefined)),
+    } as any;
+    const component = new ExerciseDetailComponent(api, {} as any, trendLineService);
+    component.history = {
+      ...createHistory('reps'),
+      recent_logs: [
+        {
+          id: 10,
+          exercise_slug: 'plank',
+          exercise_name: 'Plank',
+          metric_type: 'reps',
+          reps: 12,
+          duration_seconds: null,
+          weight_lbs: null,
+          notes: null,
+          logged_at: '2026-01-01T12:00:00Z',
+        },
+        {
+          id: 11,
+          exercise_slug: 'plank',
+          exercise_name: 'Plank',
+          metric_type: 'reps',
+          reps: 8,
+          duration_seconds: null,
+          weight_lbs: null,
+          notes: null,
+          logged_at: '2026-01-01T12:10:00Z',
+        },
+      ],
+    };
+    component.openMenuLogId = 11;
 
-    expect(component.formatLog({ metric_type: 'reps', reps: 9, duration_seconds: null, weight_lbs: null } as any)).toBe('9 reps');
-    expect(component.formatLog({ metric_type: 'duration_seconds', reps: 9, duration_seconds: 75, weight_lbs: null } as any)).toBe('75 sec');
+    component.deleteLog(11);
+
+    expect(api.deleteLog).toHaveBeenCalledWith(11);
+    expect(component.openMenuLogId).toBeNull();
+    expect(component.history?.recent_logs.map((log) => log.id)).toEqual([10]);
   });
 });

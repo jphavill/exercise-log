@@ -2,7 +2,7 @@
   <h2 class="section-title"><ng-icon name="sectionRecent" aria-hidden="true"></ng-icon><span>Recent Activity</span></h2>
   <div class="feed" *ngIf="recent.length; else emptyLogs">
     <div class="feed-item" *ngFor="let log of recent">
-      <span class="feed-text">{{ log.exercise_name }} - {{ formatRecent(log) }} - {{ log.logged_at | date: 'shortTime' }}</span>
+      <span class="feed-text">{{ log.exercise_name }} - {{ formatRecent(log) }} - {{ log.logged_at | date: 'short' }}</span>
       <div class="row-actions" (click)="onMenuClick($event)">
         <button
           type="button"

@@ -5,15 +5,16 @@ import { ActivatedRoute } from '@angular/router';
 import * as echarts from 'echarts';
 import { EChartsOption, SeriesOption } from 'echarts';
 
-import { ExerciseHistory, ExerciseLog, Totals } from '../../models/api.models';
+import { ExerciseHistory, Totals } from '../../models/api.models';
 import { ApiService } from '../../services/api/api.service';
 import { formatMetric } from '../../shared/value-format';
+import { RecentActivitySectionComponent } from '../dashboard/components/recent-activity-section/recent-activity-section.component';
 import { TrendLineService } from './trend-line.service';
 
 @Component({
   selector: 'app-exercise-detail',
   standalone: true,
-  imports: [CommonModule, NgIconComponent],
+  imports: [CommonModule, NgIconComponent, RecentActivitySectionComponent],
   templateUrl: './exercise-detail.component.html',
   styleUrl: './exercise-detail.component.css',
 })
@@ -22,6 +23,7 @@ export class ExerciseDetailComponent implements OnInit, AfterViewInit, OnDestroy
 
   history: ExerciseHistory | null = null;
   showTrendLine = false;
+  openMenuLogId: number | null = null;
   private dailyChart: echarts.ECharts | null = null;
   private renderQueued = false;
 
@@ -60,13 +62,33 @@ export class ExerciseDetailComponent implements OnInit, AfterViewInit, OnDestroy
     this.requestChartRender();
   }
 
-  formatLog(log: ExerciseLog): string {
-    return formatMetric(log.metric_type, log.reps, log.duration_seconds, log.weight_lbs);
-  }
-
   @HostListener('window:resize')
   onWindowResize(): void {
     this.dailyChart?.resize();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.openMenuLogId = null;
+  }
+
+  toggleMenu(logId: number): void {
+    this.openMenuLogId = this.openMenuLogId === logId ? null : logId;
+  }
+
+  deleteLog(logId: number): void {
+    this.openMenuLogId = null;
+    this.api.deleteLog(logId).subscribe({
+      next: () => {
+        if (!this.history) {
+          return;
+        }
+        this.history = {
+          ...this.history,
+          recent_logs: this.history.recent_logs.filter((log) => log.id !== logId),
+        };
+      },
+    });
   }
 
   private initializeChart(): void {
