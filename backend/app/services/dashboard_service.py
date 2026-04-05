@@ -1,9 +1,17 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import and_, func, select
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import Session
 
+from app.core.timezone import (
+    UTC_TIMEZONE,
+    local_day_bounds_utc,
+    local_day_sql,
+    local_today,
+)
 from app.models.exercise import Exercise, MetricType
 from app.models.exercise_log import ExerciseLog
 from app.schemas.common import Totals
@@ -21,9 +29,18 @@ from app.schemas.log import RecentLogItem
 from app.services.totals import totals_for_exercise
 
 
-def _day_bounds(day: date) -> tuple[datetime, datetime]:
-    start = datetime(day.year, day.month, day.day, tzinfo=UTC)
-    return start, start + timedelta(days=1)
+def _parse_grouped_day(value: date | str | datetime) -> date:
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+    return date.fromisoformat(str(value))
+
+
+def _grouped_day_expression(db: Session, timezone: ZoneInfo, timestamp_column: ColumnElement[datetime]) -> ColumnElement[date]:
+    bind = db.get_bind()
+    dialect_name = bind.dialect.name if bind is not None else ""
+    return local_day_sql(timestamp_column, timezone, dialect_name)
 
 
 def _metric_value(metric_type: MetricType, totals: Totals) -> int:
@@ -91,18 +108,28 @@ def _daily_totals_and_log_counts_by_exercise(
     db: Session,
     start: datetime,
     end: datetime,
+    timezone: ZoneInfo,
 ) -> tuple[dict[int, dict[date, Totals]], dict[int, int]]:
+    grouped_day = _grouped_day_expression(db, timezone, ExerciseLog.logged_at)
     rows = db.execute(
         select(
             ExerciseLog.exercise_id,
-            func.date(ExerciseLog.logged_at),
+            grouped_day.label("local_day"),
             func.coalesce(func.sum(ExerciseLog.reps), 0),
             func.coalesce(func.sum(ExerciseLog.duration_seconds), 0),
             func.count(ExerciseLog.id),
         )
-        .where(and_(ExerciseLog.logged_at >= start, ExerciseLog.logged_at < end))
-        .group_by(ExerciseLog.exercise_id, func.date(ExerciseLog.logged_at))
-        .order_by(ExerciseLog.exercise_id, func.date(ExerciseLog.logged_at))
+        .select_from(ExerciseLog)
+        .join(Exercise, Exercise.id == ExerciseLog.exercise_id)
+        .where(
+            and_(
+                ExerciseLog.logged_at >= start,
+                ExerciseLog.logged_at < end,
+                Exercise.deleted_at.is_(None),
+            )
+        )
+        .group_by(ExerciseLog.exercise_id, grouped_day)
+        .order_by(ExerciseLog.exercise_id, grouped_day)
     ).all()
 
     totals_by_exercise: dict[int, dict[date, Totals]] = {}
@@ -110,11 +137,12 @@ def _daily_totals_and_log_counts_by_exercise(
 
     for row in rows:
         exercise_id = int(row[0])
-        raw_day = row[1]
-        parsed_day = raw_day if isinstance(raw_day, date) else date.fromisoformat(str(raw_day))
-        day_totals = Totals(reps=int(row[2]), duration_seconds=int(row[3]))
-        totals_by_exercise.setdefault(exercise_id, {})[parsed_day] = day_totals
-        log_count_by_exercise[exercise_id] = log_count_by_exercise.get(exercise_id, 0) + int(row[4])
+        parsed_day = _parse_grouped_day(row[1])
+        totals_by_exercise.setdefault(exercise_id, {})[parsed_day] = Totals(
+            reps=int(row[2] or 0),
+            duration_seconds=int(row[3] or 0),
+        )
+        log_count_by_exercise[exercise_id] = log_count_by_exercise.get(exercise_id, 0) + int(row[4] or 0)
 
     return totals_by_exercise, log_count_by_exercise
 
@@ -123,20 +151,14 @@ def _daily_goal_weighted_reps_by_exercise(
     db: Session,
     start: datetime,
     end: datetime,
+    timezone: ZoneInfo,
 ) -> dict[int, dict[date, int]]:
+    grouped_day = _grouped_day_expression(db, timezone, ExerciseLog.logged_at)
     rows = db.execute(
         select(
             ExerciseLog.exercise_id,
-            func.date(ExerciseLog.logged_at),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (ExerciseLog.weight_lbs >= Exercise.goal_weight_lbs, func.coalesce(ExerciseLog.reps, 0)),
-                        else_=0,
-                    )
-                ),
-                0,
-            ),
+            grouped_day.label("local_day"),
+            func.coalesce(func.sum(ExerciseLog.reps), 0),
         )
         .select_from(ExerciseLog)
         .join(Exercise, Exercise.id == ExerciseLog.exercise_id)
@@ -147,18 +169,18 @@ def _daily_goal_weighted_reps_by_exercise(
                 Exercise.deleted_at.is_(None),
                 Exercise.metric_type == MetricType.REPS_PLUS_WEIGHT_LBS,
                 Exercise.goal_weight_lbs.is_not(None),
+                ExerciseLog.weight_lbs >= Exercise.goal_weight_lbs,
             )
         )
-        .group_by(ExerciseLog.exercise_id, func.date(ExerciseLog.logged_at))
-        .order_by(ExerciseLog.exercise_id, func.date(ExerciseLog.logged_at))
+        .group_by(ExerciseLog.exercise_id, grouped_day)
+        .order_by(ExerciseLog.exercise_id, grouped_day)
     ).all()
 
     weighted_reps_by_exercise: dict[int, dict[date, int]] = {}
     for row in rows:
         exercise_id = int(row[0])
-        raw_day = row[1]
-        parsed_day = raw_day if isinstance(raw_day, date) else date.fromisoformat(str(raw_day))
-        weighted_reps_by_exercise.setdefault(exercise_id, {})[parsed_day] = int(row[2])
+        parsed_day = _parse_grouped_day(row[1])
+        weighted_reps_by_exercise.setdefault(exercise_id, {})[parsed_day] = int(row[2] or 0)
 
     return weighted_reps_by_exercise
 
@@ -233,10 +255,11 @@ def _build_last_30_days_consistency(
     items: list[ExerciseTotalsItem],
     start_day: date,
     end: datetime,
+    timezone: ZoneInfo,
 ) -> list[ExerciseConsistencyItem]:
-    start, _ = _day_bounds(start_day)
-    totals_map, log_count_map = _daily_totals_and_log_counts_by_exercise(db, start, end)
-    weighted_map = _daily_goal_weighted_reps_by_exercise(db, start, end)
+    start, _ = local_day_bounds_utc(start_day, timezone)
+    totals_map, log_count_map = _daily_totals_and_log_counts_by_exercise(db, start, end, timezone)
+    weighted_map = _daily_goal_weighted_reps_by_exercise(db, start, end, timezone)
     goals_map = _goals_by_exercise(db, [item.exercise_id for item in items])
 
     consistency: list[ExerciseConsistencyItem] = []
@@ -296,16 +319,22 @@ def _build_last_30_days_consistency(
     return consistency
 
 
-def get_summary(db: Session) -> DashboardSummaryResponse:
-    now = datetime.now(UTC)
-    today_start, end = _day_bounds(now.date())
-    week_start = today_start - timedelta(days=now.weekday())
+def get_summary(db: Session, timezone: ZoneInfo = UTC_TIMEZONE) -> DashboardSummaryResponse:
+    today_local = local_today(timezone)
+    today_start, end = local_day_bounds_utc(today_local, timezone)
+    week_start = today_start - timedelta(days=today_local.weekday())
     last_30_start = today_start - timedelta(days=29)
 
     today = _aggregate_by_exercise(db, today_start, end)
     current_week = _aggregate_by_exercise(db, week_start, end)
     last_30_days = _aggregate_by_exercise(db, last_30_start, end)
-    last_30_days_consistency = _build_last_30_days_consistency(db, last_30_days, last_30_start.date(), end)
+    last_30_days_consistency = _build_last_30_days_consistency(
+        db,
+        last_30_days,
+        (today_local - timedelta(days=29)),
+        end,
+        timezone,
+    )
 
     total_logs_today = _count_logs_in_window(db, today_start, end)
     total_logs_this_week = _count_logs_in_window(db, week_start, end)
@@ -335,10 +364,12 @@ def _daily_totals_map(
     exercise_id: int,
     start: datetime,
     end: datetime,
+    timezone: ZoneInfo,
 ) -> dict[date, Totals]:
+    grouped_day = _grouped_day_expression(db, timezone, ExerciseLog.logged_at)
     rows = db.execute(
         select(
-            func.date(ExerciseLog.logged_at),
+            grouped_day.label("local_day"),
             func.coalesce(func.sum(ExerciseLog.reps), 0),
             func.coalesce(func.sum(ExerciseLog.duration_seconds), 0),
         )
@@ -349,17 +380,14 @@ def _daily_totals_map(
                 ExerciseLog.logged_at < end,
             )
         )
-        .group_by(func.date(ExerciseLog.logged_at))
-        .order_by(func.date(ExerciseLog.logged_at))
+        .group_by(grouped_day)
+        .order_by(grouped_day)
     ).all()
 
-    mapped: dict[date, Totals] = {}
-    for row in rows:
-        raw_day = row[0]
-        parsed_day = raw_day if isinstance(raw_day, date) else date.fromisoformat(str(raw_day))
-        mapped[parsed_day] = Totals(reps=int(row[1]), duration_seconds=int(row[2]))
-
-    return mapped
+    return {
+        _parse_grouped_day(row[0]): Totals(reps=int(row[1] or 0), duration_seconds=int(row[2] or 0))
+        for row in rows
+    }
 
 
 def _daily_weighted_goal_reps_map(
@@ -368,10 +396,12 @@ def _daily_weighted_goal_reps_map(
     start: datetime,
     end: datetime,
     goal_weight_lbs: float,
+    timezone: ZoneInfo,
 ) -> dict[date, int]:
+    grouped_day = _grouped_day_expression(db, timezone, ExerciseLog.logged_at)
     rows = db.execute(
         select(
-            func.date(ExerciseLog.logged_at),
+            grouped_day.label("local_day"),
             func.coalesce(func.sum(ExerciseLog.reps), 0),
         )
         .where(
@@ -382,17 +412,11 @@ def _daily_weighted_goal_reps_map(
                 ExerciseLog.weight_lbs >= goal_weight_lbs,
             )
         )
-        .group_by(func.date(ExerciseLog.logged_at))
-        .order_by(func.date(ExerciseLog.logged_at))
+        .group_by(grouped_day)
+        .order_by(grouped_day)
     ).all()
 
-    mapped: dict[date, int] = {}
-    for row in rows:
-        raw_day = row[0]
-        parsed_day = raw_day if isinstance(raw_day, date) else date.fromisoformat(str(raw_day))
-        mapped[parsed_day] = int(row[1])
-
-    return mapped
+    return {_parse_grouped_day(row[0]): int(row[1] or 0) for row in rows}
 
 
 def _build_days_and_best(
@@ -451,18 +475,20 @@ def _recent_logs_for_exercise(db: Session, exercise: Exercise, limit: int = 20) 
     ]
 
 
-def get_exercise_history(db: Session, slug: str, days: int) -> ExerciseHistoryResponse:
+def get_exercise_history(
+    db: Session, slug: str, days: int, timezone: ZoneInfo = UTC_TIMEZONE
+) -> ExerciseHistoryResponse:
     exercise = db.scalar(select(Exercise).where(and_(Exercise.slug == slug, Exercise.deleted_at.is_(None))))
     if not exercise:
         raise HTTPException(status_code=404, detail="exercise not found")
 
     days = max(1, min(days, 365))
-    today = datetime.now(UTC).date()
+    today = local_today(timezone)
     start_day = today - timedelta(days=days - 1)
-    start_today, end_today = _day_bounds(today)
-    start_window, _ = _day_bounds(start_day)
+    start_today, end_today = local_day_bounds_utc(today, timezone)
+    start_window, _ = local_day_bounds_utc(start_day, timezone)
 
-    mapped = _daily_totals_map(db, exercise.id, start_window, end_today)
+    mapped = _daily_totals_map(db, exercise.id, start_window, end_today, timezone)
     weighted_goal_reps_by_day: dict[date, int] | None = None
     if exercise.metric_type == MetricType.REPS_PLUS_WEIGHT_LBS and exercise.goal_weight_lbs is not None:
         weighted_goal_reps_by_day = _daily_weighted_goal_reps_map(
@@ -471,6 +497,7 @@ def get_exercise_history(db: Session, slug: str, days: int) -> ExerciseHistoryRe
             start_window,
             end_today,
             float(exercise.goal_weight_lbs),
+            timezone,
         )
 
     items, best = _build_days_and_best(

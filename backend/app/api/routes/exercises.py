@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from zoneinfo import ZoneInfo
 
+from app.api.dependencies import request_timezone
 from app.db.session import get_db
 from app.schemas.dashboard import ExerciseHistoryResponse
 from app.schemas.exercise import (
@@ -52,6 +54,9 @@ def delete_exercise_route(exercise_id: int, db: Session = Depends(get_db)) -> No
 
 @router.get("/{slug}/history", response_model=ExerciseHistoryResponse)
 def exercise_history(
-    slug: str, days: int = Query(default=30, ge=1, le=365), db: Session = Depends(get_db)
+    slug: str,
+    days: int = Query(default=30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    timezone: ZoneInfo = Depends(request_timezone),
 ) -> ExerciseHistoryResponse:
-    return get_exercise_history(db, slug, days)
+    return get_exercise_history(db, slug, days, timezone)

@@ -11,7 +11,7 @@
 
   <div class="section-title-row">
     <h3 class="section-title"><ng-icon name="sectionTrends" aria-hidden="true"></ng-icon><span>Daily totals</span></h3>
-    <button type="button" class="trend-toggle" [class.active]="showSmoothedTrend" (click)="toggleSmoothedTrend()">Trend</button>
+    <button type="button" class="trend-toggle" [class.active]="showTrendLine" (click)="toggleTrendLine()">Trend</button>
   </div>
   <div class="chart-layout">
     <div class="daily-chart" #dailyChart role="img" aria-label="Daily totals line chart with goal line"></div>

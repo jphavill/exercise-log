@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 
 import { ExerciseDetailComponent } from './exercise-detail.component';
+import { TrendLineService } from './trend-line.service';
 import { ExerciseHistory } from '../../models/api.models';
 
 function createHistory(metricType: 'duration_seconds' | 'reps' = 'reps'): ExerciseHistory {
@@ -28,6 +29,8 @@ function createHistory(metricType: 'duration_seconds' | 'reps' = 'reps'): Exerci
 }
 
 describe('ExerciseDetailComponent', () => {
+  const trendLineService = new TrendLineService();
+
   it('loads history from route slug on init', () => {
     const history = createHistory();
     const api = {
@@ -40,7 +43,7 @@ describe('ExerciseDetailComponent', () => {
         },
       },
     } as any;
-    const component = new ExerciseDetailComponent(api, route);
+    const component = new ExerciseDetailComponent(api, route, trendLineService);
 
     component.ngOnInit();
 
@@ -49,7 +52,7 @@ describe('ExerciseDetailComponent', () => {
   });
 
   it('formats totals using current exercise metric type', () => {
-    const component = new ExerciseDetailComponent({} as any, {} as any);
+    const component = new ExerciseDetailComponent({} as any, {} as any, trendLineService);
 
     expect(component.formatTotals({ reps: 7, duration_seconds: null })).toBe('0');
 
@@ -57,17 +60,17 @@ describe('ExerciseDetailComponent', () => {
     expect(component.formatTotals({ reps: 7, duration_seconds: 45 })).toBe('45 sec');
   });
 
-  it('toggles smoothed trend option', () => {
-    const component = new ExerciseDetailComponent({} as any, {} as any);
+  it('toggles trend line option', () => {
+    const component = new ExerciseDetailComponent({} as any, {} as any, trendLineService);
     component.history = createHistory('reps');
 
-    component.toggleSmoothedTrend();
+    component.toggleTrendLine();
 
-    expect(component.showSmoothedTrend).toBe(true);
+    expect(component.showTrendLine).toBe(true);
   });
 
   it('formats logs from explicit metric type', () => {
-    const component = new ExerciseDetailComponent({} as any, {} as any);
+    const component = new ExerciseDetailComponent({} as any, {} as any, trendLineService);
 
     expect(component.formatLog({ metric_type: 'reps', reps: 9, duration_seconds: null, weight_lbs: null } as any)).toBe('9 reps');
     expect(component.formatLog({ metric_type: 'duration_seconds', reps: 9, duration_seconds: 75, weight_lbs: null } as any)).toBe('75 sec');

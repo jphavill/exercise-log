@@ -8,6 +8,7 @@ import { EChartsOption, SeriesOption } from 'echarts';
 import { ExerciseHistory, ExerciseLog, Totals } from '../../models/api.models';
 import { ApiService } from '../../services/api/api.service';
 import { formatMetric } from '../../shared/value-format';
+import { TrendLineService } from './trend-line.service';
 
 @Component({
   selector: 'app-exercise-detail',
@@ -20,13 +21,14 @@ export class ExerciseDetailComponent implements OnInit, AfterViewInit, OnDestroy
   @ViewChild('dailyChart') dailyChartRef?: ElementRef<HTMLDivElement>;
 
   history: ExerciseHistory | null = null;
-  showSmoothedTrend = false;
+  showTrendLine = false;
   private dailyChart: echarts.ECharts | null = null;
   private renderQueued = false;
 
   constructor(
     private readonly api: ApiService,
     private readonly route: ActivatedRoute,
+    private readonly trendLineService: TrendLineService,
   ) {}
 
   ngOnInit(): void {
@@ -53,8 +55,8 @@ export class ExerciseDetailComponent implements OnInit, AfterViewInit, OnDestroy
     return formatMetric(this.history.exercise.metric_type, totals.reps, totals.duration_seconds);
   }
 
-  toggleSmoothedTrend(): void {
-    this.showSmoothedTrend = !this.showSmoothedTrend;
+  toggleTrendLine(): void {
+    this.showTrendLine = !this.showTrendLine;
     this.requestChartRender();
   }
 
@@ -98,6 +100,7 @@ export class ExerciseDetailComponent implements OnInit, AfterViewInit, OnDestroy
     const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim() || '#d6d3d1';
     const labels = this.history.days.map((item) => this.formatDayLabel(item.day));
     const values = this.history.days.map((item) => item.goal_progress_value);
+    const trendValues = this.trendLineService.buildSegmentedTrend(values).values;
     const goalValue = this.goalValue();
     const goalLabel = this.goalLabel(goalValue);
     const series: SeriesOption[] = [
@@ -111,6 +114,7 @@ export class ExerciseDetailComponent implements OnInit, AfterViewInit, OnDestroy
         lineStyle: {
           width: 3,
           color: accentColor,
+          opacity: this.showTrendLine ? 0.42 : 1,
         },
         emphasis: {
           focus: 'series',
@@ -123,21 +127,18 @@ export class ExerciseDetailComponent implements OnInit, AfterViewInit, OnDestroy
       },
     ];
 
-    if (this.showSmoothedTrend) {
+    if (this.showTrendLine) {
       series.push({
-        id: 'smoothed-trend',
-        name: 'Smoothed trend',
+        id: 'trend-line',
+        name: 'Trend',
         type: 'line',
-        data: values,
-        smooth: true,
+        data: trendValues,
+        smooth: false,
         showSymbol: false,
         lineStyle: {
           width: 2,
           color: accentColor,
-          opacity: 0.45,
-        },
-        tooltip: {
-          show: false,
+          opacity: 1,
         },
       });
     }

@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy import and_, select
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models.exercise import Exercise, MetricType
 from app.models.exercise_log import ExerciseLog
+from app.core.timezone import UTC_TIMEZONE, local_day_bounds_utc, local_today
 from app.schemas.log import CreateLogRequest, LogResponse, RecentLogItem
 from app.services.totals import totals_for_exercise
 
@@ -26,7 +28,7 @@ def _validate_payload(metric_type: MetricType, payload: CreateLogRequest) -> Non
             )
 
 
-def create_log(db: Session, payload: CreateLogRequest) -> LogResponse:
+def create_log(db: Session, payload: CreateLogRequest, timezone: ZoneInfo = UTC_TIMEZONE) -> LogResponse:
     exercise = db.scalar(
         select(Exercise).where(
             and_(Exercise.slug == payload.exercise_slug, Exercise.deleted_at.is_(None))
@@ -50,8 +52,8 @@ def create_log(db: Session, payload: CreateLogRequest) -> LogResponse:
     db.commit()
     db.refresh(log)
 
-    today_start = datetime(now.year, now.month, now.day, tzinfo=UTC)
-    tomorrow_start = today_start + timedelta(days=1)
+    today = local_today(timezone)
+    today_start, tomorrow_start = local_day_bounds_utc(today, timezone)
     week_start = today_start - timedelta(days=6)
 
     today_total = totals_for_exercise(db, exercise.id, today_start, tomorrow_start)

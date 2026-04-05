@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from zoneinfo import ZoneInfo
 
+from app.api.dependencies import request_timezone
 from app.db.session import get_db
 from app.schemas.log import CreateLogRequest, LogResponse, RecentLogItem
 from app.services.log_service import create_log, get_recent_logs, hard_delete_log
@@ -9,8 +11,12 @@ router = APIRouter(prefix="/logs", tags=["logs"])
 
 
 @router.post("", response_model=LogResponse)
-def create_log_entry(payload: CreateLogRequest, db: Session = Depends(get_db)) -> LogResponse:
-    return create_log(db, payload)
+def create_log_entry(
+    payload: CreateLogRequest,
+    db: Session = Depends(get_db),
+    timezone: ZoneInfo = Depends(request_timezone),
+) -> LogResponse:
+    return create_log(db, payload, timezone)
 
 
 @router.get("/recent", response_model=list[RecentLogItem])
