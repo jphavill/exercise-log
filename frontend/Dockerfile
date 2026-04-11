@@ -1,11 +1,22 @@
-FROM node:22-alpine AS build
+# syntax=docker/dockerfile:1.7
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 COPY package*.json /app/
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+FROM deps AS build
 
 COPY . /app
 RUN npm run build
+
+FROM deps AS dev
+
+COPY . /app
+
+EXPOSE 4200
+
+CMD ["npm", "start"]
 
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf

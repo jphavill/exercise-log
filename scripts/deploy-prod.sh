@@ -4,6 +4,8 @@ set -euo pipefail
 
 DRY_RUN=0
 BACKUP_DIR="${BACKUP_DIR:-/mnt/nas/databaseBackups}"
+export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
+export COMPOSE_DOCKER_CLI_BUILD="${COMPOSE_DOCKER_CLI_BUILD:-1}"
 
 usage() {
   printf 'Usage: %s [--dry-run]\n' "$0"
@@ -98,6 +100,8 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
   exit 1
 fi
 
+PRE_PULL_HEAD="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
 BACKUP_FILE="exercise_data_backup_${TIMESTAMP}.dump"
 CONTAINER_BACKUP_PATH="/tmp/${BACKUP_FILE}"
@@ -106,6 +110,37 @@ FINAL_BACKUP_PATH="$BACKUP_DIR/${BACKUP_FILE}"
 
 log "Pulling latest main"
 run_in_dir "$REPO_ROOT" git pull --ff-only origin main
+
+POST_PULL_HEAD="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+CHANGED_FILES=()
+if [ "$PRE_PULL_HEAD" != "$POST_PULL_HEAD" ]; then
+  mapfile -t CHANGED_FILES < <(git -C "$REPO_ROOT" diff --name-only "$PRE_PULL_HEAD" "$POST_PULL_HEAD")
+fi
+
+build_backend=0
+build_frontend=0
+for file in "${CHANGED_FILES[@]}"; do
+  case "$file" in
+    backend/*)
+      build_backend=1
+      ;;
+    frontend/*)
+      build_frontend=1
+      ;;
+    docker-compose.yml|docker-compose.local.yml)
+      build_backend=1
+      build_frontend=1
+      ;;
+  esac
+done
+
+SERVICES_TO_BUILD=()
+if [ "$build_backend" -eq 1 ]; then
+  SERVICES_TO_BUILD+=(backend)
+fi
+if [ "$build_frontend" -eq 1 ]; then
+  SERVICES_TO_BUILD+=(frontend)
+fi
 
 log "Running frontend tests in Docker"
 run_in_dir "$REPO_ROOT" docker run --rm -v "$REPO_ROOT/frontend:/app" -w /app node:22-alpine sh -lc "npm ci && npm test"
@@ -131,7 +166,15 @@ run_cmd find "$BACKUP_DIR" -maxdepth 1 -type f -name 'exercise_data_backup_*.dum
 
 log "Deploying production stack"
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml down
-run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml build
+if [ "${#SERVICES_TO_BUILD[@]}" -eq 0 ]; then
+  log "No backend/frontend image changes detected; skipping image rebuild"
+elif [ "${#SERVICES_TO_BUILD[@]}" -eq 1 ]; then
+  log "Building changed service: ${SERVICES_TO_BUILD[0]}"
+  run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml build "${SERVICES_TO_BUILD[0]}"
+else
+  log "Building changed services in parallel: ${SERVICES_TO_BUILD[*]}"
+  run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml build --parallel "${SERVICES_TO_BUILD[@]}"
+fi
 
 log "Starting postgres"
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d postgres
