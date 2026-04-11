@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "NFC Exercise Tracker"
+    app_name: str = "Exercise Tracker"
     database_url: str = "postgresql+psycopg://exercise:exercise@postgres:5432/exercise"
     auto_seed: bool = True
 

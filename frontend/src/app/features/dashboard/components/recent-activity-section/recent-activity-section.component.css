@@ -1,3 +1,18 @@
+.feed {
+  position: relative;
+}
+
+.feed.feed-preview::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2rem;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, var(--color-surface) 78%);
+}
+
 .feed-item {
   display: flex;
   align-items: center;
@@ -66,4 +81,29 @@
 
 .menu-item.danger {
   color: #b91c1c;
+}
+
+.feed-controls {
+  margin-top: 0.7rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.feed-toggle-button {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.feed-toggle-button:hover {
+  background: var(--color-accent-alpha-10);
+}
+
+.feed-toggle-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-accent-alpha-35);
 }

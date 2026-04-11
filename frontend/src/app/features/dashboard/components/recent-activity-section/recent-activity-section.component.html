@@ -1,7 +1,7 @@
 <section class="section">
   <h2 class="section-title"><ng-icon name="sectionRecent" aria-hidden="true"></ng-icon><span>Recent Activity</span></h2>
-  <div class="feed" *ngIf="recent.length; else emptyLogs">
-    <div class="feed-item" *ngFor="let log of recent">
+  <div class="feed" [class.feed-preview]="hasMore" *ngIf="recent.length; else emptyLogs">
+    <div class="feed-item" *ngFor="let log of visibleRecent; trackBy: trackByLogId">
       <span class="feed-text">{{ log.exercise_name }} - {{ formatRecent(log) }} - {{ log.logged_at | date: 'short' }}</span>
       <div class="row-actions" (click)="onMenuClick($event)">
         <button
@@ -20,6 +20,10 @@
         </div>
       </div>
     </div>
+  </div>
+  <div class="feed-controls" *ngIf="recent.length > initialVisibleCount">
+    <button type="button" class="feed-toggle-button" *ngIf="controls.showMore" (click)="showMore()">Show {{ controls.nextBatchCount }} more</button>
+    <button type="button" class="feed-toggle-button" *ngIf="controls.showLess" (click)="showLess()">Show less</button>
   </div>
   <ng-template #emptyLogs><p>No logs yet.</p></ng-template>
 </section>
