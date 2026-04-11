@@ -13,6 +13,7 @@ FRONTEND_MODE ?= local
 BACKEND_PYTEST_ARGS ?=
 BACKEND_BUILD ?= 0
 FRONTEND_TEST_ARGS ?=
+FRONTEND_BUILD ?= 0
 
 up:
 	$(COMPOSE_LOCAL) up -d
@@ -78,7 +79,16 @@ test-frontend:
 	@if [ "$(FRONTEND_MODE)" = "local" ]; then \
 		cd frontend && npm test -- $(FRONTEND_TEST_ARGS); \
 	elif [ "$(FRONTEND_MODE)" = "cached" ]; then \
-		docker compose -f docker-compose.yml run --rm --build frontend-test $(FRONTEND_TEST_ARGS); \
+		SOURCE_HASH="$$( { git rev-parse HEAD:frontend 2>/dev/null || printf no-head; git status --porcelain -- frontend; } | shasum -a 256 | awk '{print $$1}' )"; \
+		IMAGE_ID="$$( $(COMPOSE) config --images 2>/dev/null | awk '/frontend-test$$/ {print; exit}' )"; \
+		IMAGE_HASH=""; \
+		if [ -n "$$IMAGE_ID" ]; then \
+			IMAGE_HASH="$$(docker image inspect "$$IMAGE_ID" --format '{{ index .Config.Labels "com.exercise.frontend-source-hash" }}' 2>/dev/null || true)"; \
+		fi; \
+		if [ "$(FRONTEND_BUILD)" = "1" ] || [ "$$IMAGE_HASH" != "$$SOURCE_HASH" ]; then \
+			$(COMPOSE) build --build-arg FRONTEND_SOURCE_HASH="$$SOURCE_HASH" frontend-test; \
+		fi; \
+		$(COMPOSE) run --rm frontend-test $(FRONTEND_TEST_ARGS); \
 	else \
 		echo "Invalid FRONTEND_MODE='$(FRONTEND_MODE)'. Use local or cached."; \
 		exit 1; \

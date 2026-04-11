@@ -12,6 +12,9 @@ RUN npm run build
 
 FROM deps AS test
 
+ARG FRONTEND_SOURCE_HASH=unknown
+LABEL com.exercise.frontend-source-hash=$FRONTEND_SOURCE_HASH
+
 COPY . /app
 
 CMD ["npm", "test"]
