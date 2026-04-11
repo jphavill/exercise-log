@@ -1,8 +1,10 @@
 import os
+from sqlite3 import Connection as SqliteConnection
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import event
 from sqlalchemy.exc import OperationalError
 
 
@@ -29,6 +31,18 @@ from app.db.base import Base
 from app.db.seed import seed_exercises
 from app.db.session import SessionLocal, engine
 from app.main import app
+
+
+if engine.url.get_backend_name() == "sqlite":
+
+    @event.listens_for(engine, "connect")
+    def _configure_sqlite_for_tests(dbapi_connection: object, _: object) -> None:
+        if isinstance(dbapi_connection, SqliteConnection):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA synchronous=OFF")
+            cursor.execute("PRAGMA journal_mode=MEMORY")
+            cursor.execute("PRAGMA temp_store=MEMORY")
+            cursor.close()
 
 
 def _clear_all_tables() -> None:
