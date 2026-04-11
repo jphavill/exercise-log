@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1.7
 FROM python:3.12-slim
 
+ARG BACKEND_SOURCE_HASH=unknown
+LABEL com.exercise.backend-source-hash=$BACKEND_SOURCE_HASH
+
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 

@@ -12,16 +12,15 @@ usage() {
   printf '\n'
   printf 'Deploy flow:\n'
   printf '  1) git pull --ff-only origin main\n'
-  printf '  2) build changed backend image (if needed)\n'
-  printf '  3) frontend tests (built frontend test image)\n'
-  printf '  4) backend tests (backend container with sqlite)\n'
-  printf '  5) postgres backup to %s\n' "$BACKUP_DIR"
-  printf '  6) remove backups older than 14 days\n'
-  printf '  7) docker compose down/build\n'
-  printf '  8) start postgres\n'
-  printf '  9) run migrations\n'
-  printf ' 10) seed default exercises\n'
-  printf ' 11) start backend/frontend/caddy\n'
+  printf '  2) run frontend tests (built frontend test image)\n'
+  printf '  3) run backend tests (backend container with sqlite)\n'
+  printf '  4) postgres backup to %s\n' "$BACKUP_DIR"
+  printf '  5) remove backups older than 14 days\n'
+  printf '  6) docker compose down/build\n'
+  printf '  7) start postgres\n'
+  printf '  8) run migrations\n'
+  printf '  9) seed default exercises\n'
+  printf ' 10) start backend/frontend/caddy\n'
 }
 
 log() {
@@ -130,12 +129,6 @@ if [ "$PRE_PULL_HEAD" != "$POST_PULL_HEAD" ]; then
         ;;
     esac
   done < <(git -C "$REPO_ROOT" diff --name-only "$PRE_PULL_HEAD" "$POST_PULL_HEAD")
-fi
-
-if [ "$build_backend" -eq 1 ]; then
-  log "Building backend image before backend tests"
-  run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml build backend
-  build_backend=0
 fi
 
 declare -a SERVICES_TO_BUILD=()
