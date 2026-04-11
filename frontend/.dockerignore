@@ -15,4 +15,3 @@ Dockerfile
 .dockerignore
 .env
 .env.*
-src/**/*.spec.ts
