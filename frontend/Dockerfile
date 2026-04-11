@@ -10,6 +10,12 @@ FROM deps AS build
 COPY . /app
 RUN npm run build
 
+FROM deps AS test
+
+COPY . /app
+
+CMD ["npm", "test"]
+
 FROM deps AS dev
 
 COPY . /app

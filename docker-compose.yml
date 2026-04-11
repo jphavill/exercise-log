@@ -29,6 +29,13 @@ services:
     networks:
       - appnet
 
+  frontend-test:
+    build:
+      context: ./frontend
+      target: test
+    networks:
+      - appnet
+
   caddy:
     image: caddy:2.9-alpine
     ports:

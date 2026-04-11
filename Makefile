@@ -68,7 +68,7 @@ test-frontend:
 	@if [ "$(FRONTEND_MODE)" = "local" ]; then \
 		cd frontend && npm test -- $(FRONTEND_TEST_ARGS); \
 	elif [ "$(FRONTEND_MODE)" = "cached" ]; then \
-		./scripts/frontend-test-cached.sh $(FRONTEND_TEST_ARGS); \
+		docker compose -f docker-compose.yml run --rm --build frontend-test $(FRONTEND_TEST_ARGS); \
 	else \
 		echo "Invalid FRONTEND_MODE='$(FRONTEND_MODE)'. Use local or cached."; \
 		exit 1; \
