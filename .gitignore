@@ -6,9 +6,11 @@ __pycache__/
 .venv/
 backend/.venv/
 backend/tests/test.sqlite3
+backend/tests/*_test.sqlite3
 backend/.pytest_cache/
 backend/**/*.pyc
 backend/**/__pycache__/
 frontend/node_modules/
 frontend/dist/
 frontend/.angular/
+.cache/

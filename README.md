@@ -129,12 +129,26 @@ alembic -c alembic.ini revision --autogenerate -m "describe change"
 
 ## Running Tests
 
+Preferred unified entrypoint:
+
+```bash
+make test SERVICE=all BACKEND_MODE=host FRONTEND_MODE=local
+```
+
+Mode options:
+- `SERVICE=backend|frontend|all`
+- `BACKEND_MODE=host|container`
+- `FRONTEND_MODE=local|cached`
+
 ### Backend tests (pytest)
 
 ```bash
 source .venv/bin/activate
 cd backend
 pytest
+
+# equivalent unified command
+make test SERVICE=backend BACKEND_MODE=host
 ```
 
 Run a single backend file:
@@ -149,6 +163,9 @@ pytest tests/test_api.py
 ```bash
 cd frontend
 npm test
+
+# dockerized cached dependency mode
+make test SERVICE=frontend FRONTEND_MODE=cached
 ```
 
 Watch mode:
@@ -188,5 +205,8 @@ make rebuild-frontend
 make migrate
 make seed
 make test
+make test SERVICE=backend BACKEND_MODE=container
+make test SERVICE=frontend FRONTEND_MODE=cached
+make prune-test-cache
 make deploy
 ```

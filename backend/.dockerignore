@@ -11,7 +11,9 @@ __pycache__
 .mypy_cache
 .ruff_cache
 .coverage
+.coverage.*
 htmlcov
+test-results
 
 .venv
 venv

@@ -12,7 +12,7 @@ usage() {
   printf '\n'
   printf 'Deploy flow:\n'
   printf '  1) git pull --ff-only origin main\n'
-  printf '  2) frontend tests (node:22-alpine container)\n'
+  printf '  2) frontend tests (docker cache-aware runner)\n'
   printf '  3) backend tests (backend container with sqlite)\n'
   printf '  4) postgres backup to %s\n' "$BACKUP_DIR"
   printf '  5) remove backups older than 14 days\n'
@@ -111,30 +111,27 @@ FINAL_BACKUP_PATH="$BACKUP_DIR/${BACKUP_FILE}"
 log "Pulling latest main"
 run_in_dir "$REPO_ROOT" git pull --ff-only origin main
 
-POST_PULL_HEAD="$(git -C "$REPO_ROOT" rev-parse HEAD)"
-CHANGED_FILES=()
-if [ "$PRE_PULL_HEAD" != "$POST_PULL_HEAD" ]; then
-  mapfile -t CHANGED_FILES < <(git -C "$REPO_ROOT" diff --name-only "$PRE_PULL_HEAD" "$POST_PULL_HEAD")
-fi
-
 build_backend=0
 build_frontend=0
-for file in "${CHANGED_FILES[@]}"; do
-  case "$file" in
-    backend/*)
-      build_backend=1
-      ;;
-    frontend/*)
-      build_frontend=1
-      ;;
-    docker-compose.yml|docker-compose.local.yml)
-      build_backend=1
-      build_frontend=1
-      ;;
-  esac
-done
+POST_PULL_HEAD="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+if [ "$PRE_PULL_HEAD" != "$POST_PULL_HEAD" ]; then
+  while IFS= read -r file; do
+    case "$file" in
+      backend/*)
+        build_backend=1
+        ;;
+      frontend/*)
+        build_frontend=1
+        ;;
+      docker-compose.yml|docker-compose.local.yml)
+        build_backend=1
+        build_frontend=1
+        ;;
+    esac
+  done < <(git -C "$REPO_ROOT" diff --name-only "$PRE_PULL_HEAD" "$POST_PULL_HEAD")
+fi
 
-SERVICES_TO_BUILD=()
+declare -a SERVICES_TO_BUILD=()
 if [ "$build_backend" -eq 1 ]; then
   SERVICES_TO_BUILD+=(backend)
 fi
@@ -143,23 +140,30 @@ if [ "$build_frontend" -eq 1 ]; then
 fi
 
 log "Running frontend tests in Docker"
-run_in_dir "$REPO_ROOT" docker run --rm -v "$REPO_ROOT/frontend:/app" -w /app node:22-alpine sh -lc "npm ci && npm test"
+run_in_dir "$REPO_ROOT" ./scripts/frontend-test-cached.sh
 
 log "Running backend tests in Docker"
-run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml run --rm -e DATABASE_URL=sqlite:////tmp/deploy-test.sqlite3 -e AUTO_SEED=false backend pytest
+run_in_dir "$REPO_ROOT" make test SERVICE=backend BACKEND_MODE=container
+
+log "Pruning stale test caches"
+run_in_dir "$REPO_ROOT" ./scripts/prune-test-caches.sh
 
 log "Creating database backup"
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d postgres
 run_cmd mkdir -p "$BACKUP_DIR"
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml exec -T postgres sh -lc "pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Fc -f \"$CONTAINER_BACKUP_PATH\""
-POSTGRES_CONTAINER_ID="$(docker compose -f "$REPO_ROOT/docker-compose.yml" ps -q postgres)"
-if [ -z "$POSTGRES_CONTAINER_ID" ]; then
-  printf 'Could not determine postgres container id for backup copy.\n'
-  exit 1
+if [ "$DRY_RUN" -eq 1 ]; then
+  printf '[dry-run] skipping postgres backup copy/move operations\n'
+else
+  POSTGRES_CONTAINER_ID="$(docker compose -f "$REPO_ROOT/docker-compose.yml" ps -q postgres)"
+  if [ -z "$POSTGRES_CONTAINER_ID" ]; then
+    printf 'Could not determine postgres container id for backup copy.\n'
+    exit 1
+  fi
+  run_cmd docker cp "$POSTGRES_CONTAINER_ID:$CONTAINER_BACKUP_PATH" "$LOCAL_BACKUP_PATH"
+  run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml exec -T postgres rm -f "$CONTAINER_BACKUP_PATH"
+  run_cmd mv "$LOCAL_BACKUP_PATH" "$FINAL_BACKUP_PATH"
 fi
-run_cmd docker cp "$POSTGRES_CONTAINER_ID:$CONTAINER_BACKUP_PATH" "$LOCAL_BACKUP_PATH"
-run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml exec -T postgres rm -f "$CONTAINER_BACKUP_PATH"
-run_cmd mv "$LOCAL_BACKUP_PATH" "$FINAL_BACKUP_PATH"
 
 log "Pruning backups older than 14 days"
 run_cmd find "$BACKUP_DIR" -maxdepth 1 -type f -name 'exercise_data_backup_*.dump' -mtime +14 -delete
