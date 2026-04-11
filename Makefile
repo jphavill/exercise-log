@@ -58,7 +58,7 @@ test-backend:
 	@if [ "$(BACKEND_MODE)" = "host" ]; then \
 		. "$(VENV_ACTIVATE)" && pytest backend $(BACKEND_PYTEST_ARGS); \
 	elif [ "$(BACKEND_MODE)" = "container" ]; then \
-		$(COMPOSE) run --rm -e DATABASE_URL=sqlite:////tmp/backend_test.sqlite3 -e AUTO_SEED=false backend pytest $(BACKEND_PYTEST_ARGS); \
+		$(COMPOSE) run --rm --build -e DATABASE_URL=sqlite:////tmp/backend_test.sqlite3 -e AUTO_SEED=false backend pytest $(BACKEND_PYTEST_ARGS); \
 	else \
 		echo "Invalid BACKEND_MODE='$(BACKEND_MODE)'. Use host or container."; \
 		exit 1; \
