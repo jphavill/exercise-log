@@ -1,18 +1,18 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from app.core.timezone import UTC_TIMEZONE, local_day_bounds_utc, local_today
+from app.core.timezone import UTC_TIMEZONE, training_today
 from app.models.exercise import Exercise, MetricType
 from app.models.exercise_log import ExerciseLog
 from app.schemas.common import Totals
 from app.schemas.dashboard import BestDay, DailyTotalItem, ExerciseHistoryResponse, ExerciseMeta
 from app.schemas.log import RecentLogItem
 from app.services.shared.progress import grouped_day_expression, metric_value, parse_grouped_day
-from app.services.totals import totals_for_exercise
+from app.services.totals import totals_for_exercise, totals_for_exercise_training_days
 
 
 def _streak(days: list[DailyTotalItem], metric_type: MetricType) -> int:
@@ -28,8 +28,8 @@ def _streak(days: list[DailyTotalItem], metric_type: MetricType) -> int:
 def _daily_totals_map(
     db: Session,
     exercise_id: int,
-    start: datetime,
-    end: datetime,
+    start_day: date,
+    end_day_exclusive: date,
     timezone: ZoneInfo,
 ) -> dict[date, Totals]:
     grouped_day = grouped_day_expression(db, timezone, ExerciseLog.logged_at)
@@ -42,8 +42,8 @@ def _daily_totals_map(
         .where(
             and_(
                 ExerciseLog.exercise_id == exercise_id,
-                ExerciseLog.logged_at >= start,
-                ExerciseLog.logged_at < end,
+                grouped_day >= start_day,
+                grouped_day < end_day_exclusive,
             )
         )
         .group_by(grouped_day)
@@ -59,8 +59,8 @@ def _daily_totals_map(
 def _daily_weighted_goal_reps_map(
     db: Session,
     exercise_id: int,
-    start: datetime,
-    end: datetime,
+    start_day: date,
+    end_day_exclusive: date,
     goal_weight_lbs: float,
     timezone: ZoneInfo,
 ) -> dict[date, int]:
@@ -73,8 +73,8 @@ def _daily_weighted_goal_reps_map(
         .where(
             and_(
                 ExerciseLog.exercise_id == exercise_id,
-                ExerciseLog.logged_at >= start,
-                ExerciseLog.logged_at < end,
+                grouped_day >= start_day,
+                grouped_day < end_day_exclusive,
                 ExerciseLog.weight_lbs >= goal_weight_lbs,
             )
         )
@@ -152,19 +152,18 @@ def get_exercise_history(
         raise HTTPException(status_code=404, detail="exercise not found")
 
     days = max(1, min(days, 365))
-    today = local_today(timezone)
+    today = training_today(timezone)
     start_day = today - timedelta(days=days - 1)
-    start_today, end_today = local_day_bounds_utc(today, timezone)
-    start_window, _ = local_day_bounds_utc(start_day, timezone)
+    end_day_exclusive = today + timedelta(days=1)
 
-    mapped = _daily_totals_map(db, exercise.id, start_window, end_today, timezone)
+    mapped = _daily_totals_map(db, exercise.id, start_day, end_day_exclusive, timezone)
     weighted_goal_reps_by_day: dict[date, int] | None = None
     if exercise.metric_type == MetricType.REPS_PLUS_WEIGHT_LBS and exercise.goal_weight_lbs is not None:
         weighted_goal_reps_by_day = _daily_weighted_goal_reps_map(
             db,
             exercise.id,
-            start_window,
-            end_today,
+            start_day,
+            end_day_exclusive,
             float(exercise.goal_weight_lbs),
             timezone,
         )
@@ -178,9 +177,27 @@ def get_exercise_history(
     )
 
     all_time = totals_for_exercise(db, exercise.id)
-    today_total = totals_for_exercise(db, exercise.id, start_today, end_today)
-    last_7 = totals_for_exercise(db, exercise.id, end_today - timedelta(days=7), end_today)
-    last_30 = totals_for_exercise(db, exercise.id, end_today - timedelta(days=30), end_today)
+    today_total = totals_for_exercise_training_days(
+        db,
+        exercise.id,
+        timezone,
+        start_day=today,
+        end_day_exclusive=end_day_exclusive,
+    )
+    last_7 = totals_for_exercise_training_days(
+        db,
+        exercise.id,
+        timezone,
+        start_day=today - timedelta(days=6),
+        end_day_exclusive=end_day_exclusive,
+    )
+    last_30 = totals_for_exercise_training_days(
+        db,
+        exercise.id,
+        timezone,
+        start_day=today - timedelta(days=29),
+        end_day_exclusive=end_day_exclusive,
+    )
     recent_logs = _recent_logs_for_exercise(db, exercise)
 
     return ExerciseHistoryResponse(

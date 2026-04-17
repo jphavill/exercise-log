@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from app.db.session import SessionLocal
@@ -27,3 +27,32 @@ def cross_day_utc_timestamp(timezone_name: str) -> datetime:
             return candidate_utc
 
     raise AssertionError("Could not create a cross-day timestamp for timezone test")
+
+
+def training_day_utc_timestamp(
+    timezone_name: str,
+    *,
+    local_hour: int,
+    local_minute: int = 0,
+    day_offset: int = 0,
+) -> datetime:
+    timezone = ZoneInfo(timezone_name)
+    now_utc = datetime.now(UTC)
+    training_today = (now_utc.astimezone(timezone) - timedelta(hours=3)).date()
+    target_day = training_today + timedelta(days=day_offset)
+    local_target = datetime.combine(target_day, time(local_hour, local_minute), tzinfo=timezone)
+    return local_target.astimezone(UTC)
+
+
+def around_training_cutoff_utc_timestamps(timezone_name: str) -> tuple[datetime, datetime]:
+    before_cutoff = training_day_utc_timestamp(
+        timezone_name,
+        local_hour=2,
+        local_minute=30,
+    )
+    after_cutoff = training_day_utc_timestamp(
+        timezone_name,
+        local_hour=3,
+        local_minute=30,
+    )
+    return before_cutoff, after_cutoff

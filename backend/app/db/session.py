@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from sqlite3 import Connection as SqliteConnection
 
 from sqlalchemy import create_engine, event
@@ -34,13 +34,18 @@ def _parse_sqlite_datetime(value: object) -> datetime:
     return parsed.astimezone(UTC)
 
 
-def _local_day_utc_iso(logged_at_value: object, timezone_name: str | None) -> str | None:
+def _training_day_utc_iso(
+    logged_at_value: object,
+    timezone_name: str | None,
+    cutoff_hours: object,
+) -> str | None:
     if logged_at_value is None:
         return None
 
     timezone = resolve_timezone(timezone_name)
     logged_at_utc = _parse_sqlite_datetime(logged_at_value)
-    return logged_at_utc.astimezone(timezone).date().isoformat()
+    cutoff = int(cutoff_hours) if cutoff_hours is not None else 0
+    return (logged_at_utc.astimezone(timezone) - timedelta(hours=cutoff)).date().isoformat()
 
 
 if settings.database_url.startswith("sqlite"):
@@ -48,7 +53,7 @@ if settings.database_url.startswith("sqlite"):
     @event.listens_for(engine, "connect")
     def _register_sqlite_functions(dbapi_connection: object, _: object) -> None:
         if isinstance(dbapi_connection, SqliteConnection):
-            dbapi_connection.create_function("local_day_utc_iso", 2, _local_day_utc_iso)
+            dbapi_connection.create_function("training_day_utc_iso", 3, _training_day_utc_iso)
 
 
 def get_db() -> Generator[Session, None, None]:

@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.core.timezone import local_day_sql
+from app.core.timezone import training_day_sql
 from app.models.exercise import MetricType
 from app.schemas.common import Totals
 
@@ -24,7 +24,7 @@ def grouped_day_expression(
 ) -> ColumnElement[date]:
     bind = db.get_bind()
     dialect_name = bind.dialect.name if bind is not None else ""
-    return local_day_sql(timestamp_column, timezone, dialect_name)
+    return training_day_sql(timestamp_column, timezone, dialect_name)
 
 
 def metric_value(metric_type: MetricType, totals: Totals) -> int:

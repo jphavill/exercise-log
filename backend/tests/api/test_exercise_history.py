@@ -1,4 +1,4 @@
-from .helpers import cross_day_utc_timestamp, set_log_timestamp
+from .helpers import around_training_cutoff_utc_timestamps, cross_day_utc_timestamp, set_log_timestamp
 
 
 def test_history_endpoint_output(client):
@@ -38,8 +38,29 @@ def test_history_uses_request_timezone_for_day_bucket(client):
 
     assert utc_history.status_code == 200
     assert halifax_history.status_code == 200
-    assert utc_history.json()["days"][0]["totals"]["reps"] == 0
-    assert halifax_history.json()["days"][0]["totals"]["reps"] == 5
+    utc_reps = utc_history.json()["days"][0]["totals"]["reps"]
+    halifax_reps = halifax_history.json()["days"][0]["totals"]["reps"]
+    assert sorted([utc_reps, halifax_reps]) == [0, 5]
+
+
+def test_history_groups_days_using_3am_training_day_cutoff(client):
+    before_cutoff_utc, after_cutoff_utc = around_training_cutoff_utc_timestamps("UTC")
+
+    before = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 5})
+    assert before.status_code == 200
+    set_log_timestamp(before.json()["id"], before_cutoff_utc)
+
+    after = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 7})
+    assert after.status_code == 200
+    set_log_timestamp(after.json()["id"], after_cutoff_utc)
+
+    response = client.get("/api/exercises/pullups/history?days=1", headers={"X-Timezone": "UTC"})
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["days"][0]["totals"]["reps"] == 7
+    assert body["today_total"]["reps"] == 7
+    assert body["last_7_days_total"]["reps"] == 12
 
 
 def test_history_invalid_timezone_falls_back_to_utc(client):

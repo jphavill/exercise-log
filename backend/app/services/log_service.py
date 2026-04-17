@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.models.exercise import Exercise, MetricType
 from app.models.exercise_log import ExerciseLog
-from app.core.timezone import UTC_TIMEZONE, local_day_bounds_utc, local_today
+from app.core.timezone import UTC_TIMEZONE, training_today
 from app.schemas.log import CreateLogRequest, LogResponse, RecentLogItem
-from app.services.totals import totals_for_exercise
+from app.services.totals import totals_for_exercise_training_days
 
 
 def _validate_payload(metric_type: MetricType, payload: CreateLogRequest) -> None:
@@ -52,12 +52,24 @@ def create_log(db: Session, payload: CreateLogRequest, timezone: ZoneInfo = UTC_
     db.commit()
     db.refresh(log)
 
-    today = local_today(timezone)
-    today_start, tomorrow_start = local_day_bounds_utc(today, timezone)
-    week_start = today_start - timedelta(days=6)
+    today = training_today(timezone)
+    tomorrow = today + timedelta(days=1)
+    week_start = today - timedelta(days=6)
 
-    today_total = totals_for_exercise(db, exercise.id, today_start, tomorrow_start)
-    last_7_days_total = totals_for_exercise(db, exercise.id, week_start, tomorrow_start)
+    today_total = totals_for_exercise_training_days(
+        db,
+        exercise.id,
+        timezone,
+        start_day=today,
+        end_day_exclusive=tomorrow,
+    )
+    last_7_days_total = totals_for_exercise_training_days(
+        db,
+        exercise.id,
+        timezone,
+        start_day=week_start,
+        end_day_exclusive=tomorrow,
+    )
 
     return LogResponse(
         id=log.id,

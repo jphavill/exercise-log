@@ -1,4 +1,4 @@
-from .helpers import cross_day_utc_timestamp, set_log_timestamp
+from .helpers import around_training_cutoff_utc_timestamps, cross_day_utc_timestamp, set_log_timestamp
 
 
 def test_valid_pullup_log_creation(client):
@@ -93,21 +93,15 @@ def test_deleted_exercise_cannot_create_logs(client):
 
 
 def test_create_log_uses_request_timezone_for_today_totals(client):
-    create_response = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 5})
-    assert create_response.status_code == 200
-    boundary_log_id = create_response.json()["id"]
-    set_log_timestamp(boundary_log_id, cross_day_utc_timestamp("America/Halifax"))
+    before_cutoff_utc, after_cutoff_utc = around_training_cutoff_utc_timestamps("America/Halifax")
 
-    utc_response = client.post(
-        "/api/logs",
-        json={"exercise_slug": "pullups", "reps": 1},
-        headers={"X-Timezone": "UTC"},
-    )
-    assert utc_response.status_code == 200
-    utc_body = utc_response.json()
-    assert utc_body["today_total"]["reps"] == 1
+    before = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 5})
+    assert before.status_code == 200
+    set_log_timestamp(before.json()["id"], before_cutoff_utc)
 
-    client.delete(f"/api/logs/{utc_body['id']}")
+    after = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 4})
+    assert after.status_code == 200
+    set_log_timestamp(after.json()["id"], after_cutoff_utc)
 
     halifax_response = client.post(
         "/api/logs",
@@ -115,7 +109,27 @@ def test_create_log_uses_request_timezone_for_today_totals(client):
         headers={"X-Timezone": "America/Halifax"},
     )
     assert halifax_response.status_code == 200
-    assert halifax_response.json()["today_total"]["reps"] == 6
+    assert halifax_response.json()["today_total"]["reps"] == 5
+
+
+def test_create_log_today_total_respects_3am_training_day_cutoff(client):
+    before_cutoff_utc, after_cutoff_utc = around_training_cutoff_utc_timestamps("UTC")
+
+    before = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 6})
+    assert before.status_code == 200
+    set_log_timestamp(before.json()["id"], before_cutoff_utc)
+
+    after = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 7})
+    assert after.status_code == 200
+    set_log_timestamp(after.json()["id"], after_cutoff_utc)
+
+    response = client.post(
+        "/api/logs",
+        json={"exercise_slug": "pullups", "reps": 1},
+        headers={"X-Timezone": "UTC"},
+    )
+    assert response.status_code == 200
+    assert response.json()["today_total"]["reps"] == 8
 
 
 def test_create_log_invalid_timezone_falls_back_to_utc(client):

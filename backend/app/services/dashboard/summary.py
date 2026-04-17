@@ -1,10 +1,10 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from app.core.timezone import UTC_TIMEZONE, local_day_bounds_utc, local_today
+from app.core.timezone import UTC_TIMEZONE, training_today
 from app.models.exercise import Exercise, MetricType
 from app.models.exercise_log import ExerciseLog
 from app.schemas.common import Totals
@@ -24,15 +24,21 @@ from app.services.shared.progress import (
 )
 
 
-def _count_logs_in_window(db: Session, start: datetime, end: datetime) -> int:
+def _count_logs_in_window(
+    db: Session,
+    start_day: date,
+    end_day_exclusive: date,
+    timezone: ZoneInfo,
+) -> int:
+    training_day = grouped_day_expression(db, timezone, ExerciseLog.logged_at)
     total = db.scalar(
         select(func.count(ExerciseLog.id))
         .select_from(ExerciseLog)
         .join(Exercise, Exercise.id == ExerciseLog.exercise_id)
         .where(
             and_(
-                ExerciseLog.logged_at >= start,
-                ExerciseLog.logged_at < end,
+                training_day >= start_day,
+                training_day < end_day_exclusive,
                 Exercise.deleted_at.is_(None),
             )
         )
@@ -40,14 +46,20 @@ def _count_logs_in_window(db: Session, start: datetime, end: datetime) -> int:
     return int(total or 0)
 
 
-def _aggregate_by_exercise(db: Session, start: datetime, end: datetime) -> list[ExerciseTotalsItem]:
+def _aggregate_by_exercise(
+    db: Session,
+    start_day: date,
+    end_day_exclusive: date,
+    timezone: ZoneInfo,
+) -> list[ExerciseTotalsItem]:
+    training_day = grouped_day_expression(db, timezone, ExerciseLog.logged_at)
     window_totals = (
         select(
             ExerciseLog.exercise_id.label("exercise_id"),
             func.coalesce(func.sum(ExerciseLog.reps), 0).label("reps_total"),
             func.coalesce(func.sum(ExerciseLog.duration_seconds), 0).label("duration_total"),
         )
-        .where(and_(ExerciseLog.logged_at >= start, ExerciseLog.logged_at < end))
+        .where(and_(training_day >= start_day, training_day < end_day_exclusive))
         .group_by(ExerciseLog.exercise_id)
         .subquery()
     )
@@ -81,8 +93,8 @@ def _aggregate_by_exercise(db: Session, start: datetime, end: datetime) -> list[
 
 def _daily_totals_and_log_counts_by_exercise(
     db: Session,
-    start: datetime,
-    end: datetime,
+    start_day: date,
+    end_day_exclusive: date,
     timezone: ZoneInfo,
 ) -> tuple[dict[int, dict[date, Totals]], dict[int, int]]:
     grouped_day = grouped_day_expression(db, timezone, ExerciseLog.logged_at)
@@ -98,8 +110,8 @@ def _daily_totals_and_log_counts_by_exercise(
         .join(Exercise, Exercise.id == ExerciseLog.exercise_id)
         .where(
             and_(
-                ExerciseLog.logged_at >= start,
-                ExerciseLog.logged_at < end,
+                grouped_day >= start_day,
+                grouped_day < end_day_exclusive,
                 Exercise.deleted_at.is_(None),
             )
         )
@@ -124,8 +136,8 @@ def _daily_totals_and_log_counts_by_exercise(
 
 def _daily_goal_weighted_reps_by_exercise(
     db: Session,
-    start: datetime,
-    end: datetime,
+    start_day: date,
+    end_day_exclusive: date,
     timezone: ZoneInfo,
 ) -> dict[int, dict[date, int]]:
     grouped_day = grouped_day_expression(db, timezone, ExerciseLog.logged_at)
@@ -139,8 +151,8 @@ def _daily_goal_weighted_reps_by_exercise(
         .join(Exercise, Exercise.id == ExerciseLog.exercise_id)
         .where(
             and_(
-                ExerciseLog.logged_at >= start,
-                ExerciseLog.logged_at < end,
+                grouped_day >= start_day,
+                grouped_day < end_day_exclusive,
                 Exercise.deleted_at.is_(None),
                 Exercise.metric_type == MetricType.REPS_PLUS_WEIGHT_LBS,
                 Exercise.goal_weight_lbs.is_not(None),
@@ -186,12 +198,16 @@ def _build_last_30_days_consistency(
     db: Session,
     items: list[ExerciseTotalsItem],
     start_day: date,
-    end: datetime,
+    end_day_exclusive: date,
     timezone: ZoneInfo,
 ) -> list[ExerciseConsistencyItem]:
-    start, _ = local_day_bounds_utc(start_day, timezone)
-    totals_map, log_count_map = _daily_totals_and_log_counts_by_exercise(db, start, end, timezone)
-    weighted_map = _daily_goal_weighted_reps_by_exercise(db, start, end, timezone)
+    totals_map, log_count_map = _daily_totals_and_log_counts_by_exercise(
+        db,
+        start_day,
+        end_day_exclusive,
+        timezone,
+    )
+    weighted_map = _daily_goal_weighted_reps_by_exercise(db, start_day, end_day_exclusive, timezone)
     goals_map = _goals_by_exercise(db, [item.exercise_id for item in items])
 
     consistency: list[ExerciseConsistencyItem] = []
@@ -257,24 +273,24 @@ def _build_last_30_days_consistency(
 
 
 def get_summary(db: Session, timezone: ZoneInfo = UTC_TIMEZONE) -> DashboardSummaryResponse:
-    today_local = local_today(timezone)
-    today_start, end = local_day_bounds_utc(today_local, timezone)
-    week_start = today_start - timedelta(days=today_local.weekday())
-    last_30_start = today_start - timedelta(days=29)
+    today_local = training_today(timezone)
+    end_day_exclusive = today_local + timedelta(days=1)
+    week_start = today_local - timedelta(days=today_local.weekday())
+    last_30_start = today_local - timedelta(days=29)
 
-    today = _aggregate_by_exercise(db, today_start, end)
-    current_week = _aggregate_by_exercise(db, week_start, end)
-    last_30_days = _aggregate_by_exercise(db, last_30_start, end)
+    today = _aggregate_by_exercise(db, today_local, end_day_exclusive, timezone)
+    current_week = _aggregate_by_exercise(db, week_start, end_day_exclusive, timezone)
+    last_30_days = _aggregate_by_exercise(db, last_30_start, end_day_exclusive, timezone)
     last_30_days_consistency = _build_last_30_days_consistency(
         db,
         last_30_days,
         (today_local - timedelta(days=29)),
-        end,
+        end_day_exclusive,
         timezone,
     )
 
-    total_logs_today = _count_logs_in_window(db, today_start, end)
-    total_logs_this_week = _count_logs_in_window(db, week_start, end)
+    total_logs_today = _count_logs_in_window(db, today_local, end_day_exclusive, timezone)
+    total_logs_this_week = _count_logs_in_window(db, week_start, end_day_exclusive, timezone)
 
     return DashboardSummaryResponse(
         today=today,

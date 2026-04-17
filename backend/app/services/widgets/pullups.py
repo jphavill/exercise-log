@@ -1,11 +1,11 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from app.core.timezone import UTC_TIMEZONE, local_day_bounds_utc, local_today
+from app.core.timezone import UTC_TIMEZONE, training_today
 from app.models.exercise import Exercise
 from app.models.exercise_log import ExerciseLog
 from app.schemas.widget import PullupsWidgetDayItem, PullupsWidgetResponse
@@ -20,8 +20,8 @@ from app.services.shared.progress import (
 def _daily_reps_map_for_exercise(
     db: Session,
     exercise_id: int,
-    start: datetime,
-    end: datetime,
+    start_day: date,
+    end_day_exclusive: date,
     timezone: ZoneInfo,
 ) -> dict[date, int]:
     grouped_day = grouped_day_expression(db, timezone, ExerciseLog.logged_at)
@@ -33,8 +33,8 @@ def _daily_reps_map_for_exercise(
         .where(
             and_(
                 ExerciseLog.exercise_id == exercise_id,
-                ExerciseLog.logged_at >= start,
-                ExerciseLog.logged_at < end,
+                grouped_day >= start_day,
+                grouped_day < end_day_exclusive,
             )
         )
         .group_by(grouped_day)
@@ -49,24 +49,22 @@ def get_pullups_widget(db: Session, timezone: ZoneInfo = UTC_TIMEZONE) -> Pullup
     if not pullups:
         raise HTTPException(status_code=404, detail="exercise not found")
 
-    today = local_today(timezone)
+    today = training_today(timezone)
     start_day = today - timedelta(days=29)
     year_start_day = date(today.year, 1, 1)
-
-    start_30_days_utc, _ = local_day_bounds_utc(start_day, timezone)
-    year_start_utc, _ = local_day_bounds_utc(year_start_day, timezone)
-    _, tomorrow_start_utc = local_day_bounds_utc(today, timezone)
+    end_day_exclusive = today + timedelta(days=1)
+    grouped_day = grouped_day_expression(db, timezone, ExerciseLog.logged_at)
 
     year_total = db.scalar(
         select(func.coalesce(func.sum(ExerciseLog.reps), 0)).where(
             and_(
                 ExerciseLog.exercise_id == pullups.id,
-                ExerciseLog.logged_at >= year_start_utc,
-                ExerciseLog.logged_at < tomorrow_start_utc,
+                grouped_day >= year_start_day,
+                grouped_day < end_day_exclusive,
             )
         )
     )
-    daily_counts = _daily_reps_map_for_exercise(db, pullups.id, start_30_days_utc, tomorrow_start_utc, timezone)
+    daily_counts = _daily_reps_map_for_exercise(db, pullups.id, start_day, end_day_exclusive, timezone)
 
     day_values: list[tuple[date, int]] = []
     for i in range(30):

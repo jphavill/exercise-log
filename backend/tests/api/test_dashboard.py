@@ -1,4 +1,4 @@
-from .helpers import cross_day_utc_timestamp, set_log_timestamp
+from .helpers import around_training_cutoff_utc_timestamps, cross_day_utc_timestamp, set_log_timestamp
 
 
 def test_dashboard_summary_output(client):
@@ -23,12 +23,33 @@ def test_dashboard_summary_uses_request_timezone_for_day_bucket(client):
     utc_summary = client.get("/api/dashboard/summary", headers={"X-Timezone": "UTC"})
     assert utc_summary.status_code == 200
     utc_pullups = next(item for item in utc_summary.json()["today"] if item["exercise_slug"] == "pullups")
-    assert utc_pullups["totals"]["reps"] == 0
 
     adt_summary = client.get("/api/dashboard/summary", headers={"X-Timezone": "America/Halifax"})
     assert adt_summary.status_code == 200
     adt_pullups = next(item for item in adt_summary.json()["today"] if item["exercise_slug"] == "pullups")
-    assert adt_pullups["totals"]["reps"] == 5
+    assert sorted([utc_pullups["totals"]["reps"], adt_pullups["totals"]["reps"]]) == [0, 5]
+
+
+def test_dashboard_summary_uses_3am_training_day_cutoff(client):
+    before_cutoff_utc, after_cutoff_utc = around_training_cutoff_utc_timestamps("UTC")
+
+    before = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 5})
+    assert before.status_code == 200
+    set_log_timestamp(before.json()["id"], before_cutoff_utc)
+
+    after = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 7})
+    assert after.status_code == 200
+    set_log_timestamp(after.json()["id"], after_cutoff_utc)
+
+    response = client.get("/api/dashboard/summary", headers={"X-Timezone": "UTC"})
+    assert response.status_code == 200
+    body = response.json()
+
+    pullups_today = next(item for item in body["today"] if item["exercise_slug"] == "pullups")
+    pullups_last_30 = next(item for item in body["last_30_days"] if item["exercise_slug"] == "pullups")
+    assert pullups_today["totals"]["reps"] == 7
+    assert pullups_last_30["totals"]["reps"] == 12
+    assert body["total_logs_today"] == 1
 
 
 def test_dashboard_summary_invalid_timezone_falls_back_to_utc(client):
