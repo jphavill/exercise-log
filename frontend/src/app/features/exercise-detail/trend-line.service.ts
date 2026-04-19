@@ -1,97 +1,156 @@
 import { Injectable } from '@angular/core';
 
-type LineFit = {
+type RegressionModel = {
   slope: number;
   intercept: number;
-  sse: number;
-  values: number[];
+};
+
+type TrendLineOptions = {
+  minSegmentLength: number;
+  absoluteThreshold: number;
+  percentThreshold: number;
+  breakPersistence: number;
+  minPercentBase: number;
+};
+
+export type TrendSegment = {
+  startIndex: number;
+  endIndex: number;
+  slope: number;
+  intercept: number;
 };
 
 export type SegmentedTrendResult = {
   values: number[];
   breakIndex: number | null;
+  breakIndices: number[];
+  segments: TrendSegment[];
 };
 
 @Injectable({ providedIn: 'root' })
 export class TrendLineService {
-  private readonly minSegmentLength = 7;
-  private readonly minimumImprovementRatio = 0.3;
+  private readonly defaultOptions: TrendLineOptions = {
+    minSegmentLength: 4,
+    absoluteThreshold: 12,
+    percentThreshold: 0.35,
+    breakPersistence: 2,
+    minPercentBase: 10,
+  };
 
-  buildSegmentedTrend(values: number[]): SegmentedTrendResult {
+  buildSegmentedTrend(values: number[], options: Partial<TrendLineOptions> = {}): SegmentedTrendResult {
+    const config = { ...this.defaultOptions, ...options };
     if (values.length < 2) {
-      return { values: [...values], breakIndex: null };
+      return {
+        values: [...values],
+        breakIndex: null,
+        breakIndices: [],
+        segments: [
+          {
+            startIndex: 0,
+            endIndex: values.length,
+            slope: 0,
+            intercept: values[0] ?? 0,
+          },
+        ],
+      };
     }
 
-    const singleLine = this.fitRange(values, 0, values.length);
-    if (values.length < this.minSegmentLength * 2) {
-      return { values: singleLine.values, breakIndex: null };
-    }
+    const breakIndices: number[] = [];
+    const segments: TrendSegment[] = [];
+    let segmentStart = 0;
+    let index = config.minSegmentLength;
+    let candidateBreakIndex: number | null = null;
+    let candidateModel: RegressionModel | null = null;
+    let candidateDirection = 0;
+    let confirmations = 0;
 
-    let bestBreakIndex: number | null = null;
-    let bestLeft: LineFit | null = null;
-    let bestRight: LineFit | null = null;
-    let bestSegmentedSse = Number.POSITIVE_INFINITY;
-
-    for (let breakIndex = this.minSegmentLength; breakIndex <= values.length - this.minSegmentLength; breakIndex += 1) {
-      const left = this.fitRange(values, 0, breakIndex);
-      const right = this.fitRange(values, breakIndex, values.length);
-      const segmentedSse = left.sse + right.sse;
-      if (segmentedSse < bestSegmentedSse) {
-        bestSegmentedSse = segmentedSse;
-        bestBreakIndex = breakIndex;
-        bestLeft = left;
-        bestRight = right;
+    while (index < values.length) {
+      const hasEnoughPoints = index - segmentStart >= config.minSegmentLength;
+      if (!hasEnoughPoints) {
+        index += 1;
+        continue;
       }
+
+      const model = candidateBreakIndex == null ? this.fitLinearRegression(values, segmentStart, index) : candidateModel;
+      if (!model) {
+        index += 1;
+        continue;
+      }
+      const predicted = this.predict(model, index - segmentStart);
+      const residual = Math.abs(values[index] - predicted);
+      const direction = Math.sign(values[index] - predicted);
+
+      if (this.shouldBreakSegment(residual, predicted, config)) {
+        if (candidateBreakIndex == null) {
+          candidateBreakIndex = index;
+          candidateModel = this.fitLinearRegression(values, segmentStart, index);
+          candidateDirection = direction;
+          confirmations = 1;
+        } else if (direction === candidateDirection) {
+          confirmations += 1;
+        } else {
+          candidateBreakIndex = index;
+          candidateModel = this.fitLinearRegression(values, segmentStart, index);
+          candidateDirection = direction;
+          confirmations = 1;
+        }
+
+        const candidate = candidateBreakIndex;
+        const isConfirmed =
+          confirmations >= config.breakPersistence &&
+          candidate - segmentStart >= config.minSegmentLength &&
+          values.length - candidate >= config.minSegmentLength &&
+          this.hasSustainedLevelShift(values, candidate, config);
+
+        if (isConfirmed) {
+          const segmentModel = this.fitLinearRegression(values, segmentStart, candidate);
+          segments.push({
+            startIndex: segmentStart,
+            endIndex: candidate,
+            slope: segmentModel.slope,
+            intercept: segmentModel.intercept,
+          });
+          breakIndices.push(candidate);
+          segmentStart = candidate;
+          index = segmentStart + config.minSegmentLength;
+          candidateBreakIndex = null;
+          candidateModel = null;
+          candidateDirection = 0;
+          confirmations = 0;
+          continue;
+        }
+      } else {
+        candidateBreakIndex = null;
+        candidateModel = null;
+        candidateDirection = 0;
+        confirmations = 0;
+      }
+
+      index += 1;
     }
 
-    if (bestBreakIndex == null || !bestLeft || !bestRight) {
-      return { values: singleLine.values, breakIndex: null };
-    }
+    const finalSegmentModel = this.fitLinearRegression(values, segmentStart, values.length);
+    segments.push({
+      startIndex: segmentStart,
+      endIndex: values.length,
+      slope: finalSegmentModel.slope,
+      intercept: finalSegmentModel.intercept,
+    });
 
-    const improvedEnough = this.isImprovedEnough(singleLine.sse, bestSegmentedSse);
-    const changedEnough = this.hasMeaningfulChange(values, bestBreakIndex, bestLeft, bestRight);
-
-    if (!improvedEnough || !changedEnough) {
-      return { values: singleLine.values, breakIndex: null };
-    }
+    const fittedValues = this.buildPiecewiseValues(segments, values.length);
 
     return {
-      values: [...bestLeft.values, ...bestRight.values],
-      breakIndex: bestBreakIndex,
+      values: fittedValues,
+      breakIndex: breakIndices[0] ?? null,
+      breakIndices,
+      segments,
     };
   }
 
-  private isImprovedEnough(singleSse: number, segmentedSse: number): boolean {
-    if (singleSse <= 0) {
-      return false;
-    }
-    const improvementRatio = (singleSse - segmentedSse) / singleSse;
-    return improvementRatio >= this.minimumImprovementRatio;
-  }
-
-  private hasMeaningfulChange(values: number[], breakIndex: number, left: LineFit, right: LineFit): boolean {
-    const minimumSlopeChange = this.minimumSlopeChange(values.length, values);
-    const minimumLevelChange = this.minimumLevelChange(values);
-    const slopeDelta = Math.abs(left.slope - right.slope);
-    const levelAtBreakDelta = Math.abs(this.predictAt(left, breakIndex) - this.predictAt(right, breakIndex));
-    return slopeDelta >= minimumSlopeChange || levelAtBreakDelta >= minimumLevelChange;
-  }
-
-  private minimumSlopeChange(length: number, values: number[]): number {
-    const dataRange = this.range(values);
-    const baselineSlope = dataRange / Math.max(1, length - 1);
-    return Math.max(0.05, baselineSlope * 0.35);
-  }
-
-  private minimumLevelChange(values: number[]): number {
-    const dataRange = this.range(values);
-    return Math.max(1, dataRange * 0.2);
-  }
-
-  private fitRange(values: number[], start: number, end: number): LineFit {
+  private fitLinearRegression(values: number[], start: number, end: number): RegressionModel {
     const count = end - start;
     if (count <= 0) {
-      return { slope: 0, intercept: 0, sse: 0, values: [] };
+      return { slope: 0, intercept: 0 };
     }
 
     let sumX = 0;
@@ -99,8 +158,8 @@ export class TrendLineService {
     let sumXX = 0;
     let sumXY = 0;
 
-    for (let x = start; x < end; x += 1) {
-      const y = values[x];
+    for (let x = 0; x < count; x += 1) {
+      const y = values[start + x];
       sumX += x;
       sumY += y;
       sumXX += x * x;
@@ -111,42 +170,66 @@ export class TrendLineService {
     const slope = denominator === 0 ? 0 : (count * sumXY - sumX * sumY) / denominator;
     const intercept = (sumY - slope * sumX) / count;
 
-    const fittedValues: number[] = [];
-    let sse = 0;
-    for (let x = start; x < end; x += 1) {
-      const predicted = slope * x + intercept;
-      fittedValues.push(predicted);
-      const error = values[x] - predicted;
-      sse += error * error;
-    }
-
     return {
       slope,
       intercept,
-      sse,
-      values: fittedValues,
     };
   }
 
-  private predictAt(line: LineFit, x: number): number {
-    return line.slope * x + line.intercept;
+  private predict(model: RegressionModel, x: number): number {
+    return model.slope * x + model.intercept;
   }
 
-  private range(values: number[]): number {
+  private shouldBreakSegment(residual: number, predicted: number, options: TrendLineOptions): boolean {
+    if (residual >= options.absoluteThreshold) {
+      return true;
+    }
+
+    const percentBase = Math.max(options.minPercentBase, Math.abs(predicted));
+    return residual >= percentBase * options.percentThreshold;
+  }
+
+  private buildPiecewiseValues(segments: TrendSegment[], length: number): number[] {
+    const fittedValues = new Array<number>(length).fill(0);
+
+    for (const segment of segments) {
+      for (let index = segment.startIndex; index < segment.endIndex; index += 1) {
+        const localX = index - segment.startIndex;
+        fittedValues[index] = this.predict(segment, localX);
+      }
+    }
+
+    return fittedValues;
+  }
+
+  private hasSustainedLevelShift(values: number[], breakIndex: number, options: TrendLineOptions): boolean {
+    if (breakIndex < options.minSegmentLength || values.length - breakIndex < options.minSegmentLength) {
+      return false;
+    }
+
+    const beforeSlice = values.slice(breakIndex - options.minSegmentLength, breakIndex);
+    const afterSlice = values.slice(breakIndex, breakIndex + options.minSegmentLength);
+    const beforeMedian = this.median(beforeSlice);
+    const afterMedian = this.median(afterSlice);
+    const levelDelta = Math.abs(afterMedian - beforeMedian);
+    if (levelDelta >= options.absoluteThreshold) {
+      return true;
+    }
+
+    const percentBase = Math.max(options.minPercentBase, Math.abs(beforeMedian));
+    return levelDelta >= percentBase * options.percentThreshold;
+  }
+
+  private median(values: number[]): number {
     if (!values.length) {
       return 0;
     }
 
-    let min = values[0];
-    let max = values[0];
-    for (const value of values) {
-      if (value < min) {
-        min = value;
-      }
-      if (value > max) {
-        max = value;
-      }
+    const sorted = [...values].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+      return (sorted[middle - 1] + sorted[middle]) / 2;
     }
-    return max - min;
+    return sorted[middle];
   }
 }
