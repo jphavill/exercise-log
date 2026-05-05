@@ -28,7 +28,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
 os.environ["AUTO_SEED"] = "false"
 
 from app.db.base import Base
-from app.db.seed import seed_exercises
+from app.db.seed import seed_exercises, seed_workouts
 from app.db.session import SessionLocal, engine
 from app.main import app
 
@@ -71,6 +71,7 @@ def isolate_database() -> None:
     _clear_all_tables()
     with SessionLocal() as db:
         seed_exercises(db)
+        seed_workouts(db)
 
 
 @pytest.fixture()
