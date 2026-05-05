@@ -146,7 +146,9 @@ log "Running backend tests in Docker"
 run_in_dir "$REPO_ROOT" make test SERVICE=backend BACKEND_MODE=container
 
 log "Pruning stale test caches"
-run_in_dir "$REPO_ROOT" ./scripts/prune-test-caches.sh
+if ! run_in_dir "$REPO_ROOT" ./scripts/prune-test-caches.sh; then
+  log "Cache prune had non-fatal errors; continuing deploy"
+fi
 
 log "Creating database backup"
 run_in_dir "$REPO_ROOT" docker compose -f docker-compose.yml up -d postgres

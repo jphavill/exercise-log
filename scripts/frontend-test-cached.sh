@@ -24,6 +24,7 @@ NODE_MODULES_CACHE_DIR="$CACHE_ROOT/$cache_key"
 mkdir -p "$NODE_MODULES_CACHE_DIR" "$NPM_CACHE_DIR"
 
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
   -e CACHE_KEY="$cache_key" \
   -e NPM_CONFIG_CACHE=/npm-cache \
   -v "$FRONTEND_DIR:/app" \
