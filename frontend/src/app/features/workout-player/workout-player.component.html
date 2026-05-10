@@ -1,0 +1,41 @@
+<section class="workout-player">
+  <header class="player-header">
+    <button type="button" class="back-button" aria-label="Back to workouts" (click)="goBack()">&lt;</button>
+    <h1 class="player-title">{{ title }}</h1>
+  </header>
+
+  <div class="player-grid" aria-live="polite">
+    <div class="player-row player-row-top">
+      <div *ngIf="showCountdown" class="countdown">{{ countdown }}</div>
+      <button *ngIf="showDoneButton" type="button" class="done-button" (click)="completeRepStep()">Done</button>
+    </div>
+
+    <div class="player-row player-row-current">
+      <ng-container [ngSwitch]="state">
+        <div *ngSwitchCase="'loading'" class="current-state">Loading</div>
+        <div *ngSwitchCase="'ready'" class="current-state">Ready</div>
+        <div *ngSwitchCase="'finished'" class="finished-message">
+          <div class="finished-title">Finished</div>
+          <div class="finished-subtitle">Workout complete</div>
+        </div>
+        <div *ngSwitchCase="'error'" class="finished-message">
+          <div class="finished-title">Workout unavailable</div>
+          <div class="finished-subtitle">Go back and choose another workout</div>
+        </div>
+        <div *ngSwitchDefault class="step-block">
+          <ng-container *ngIf="currentStep as step">
+            <h2 class="current-title">{{ step.title }}</h2>
+            <p class="current-meta">{{ stepMetadata(step) }}</p>
+          </ng-container>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="player-row player-row-next">
+      <ng-container *ngIf="nextStep as step">
+        <h3 class="next-title">{{ step.title }}</h3>
+        <p class="next-meta">{{ stepMetadata(step) }}</p>
+      </ng-container>
+    </div>
+  </div>
+</section>

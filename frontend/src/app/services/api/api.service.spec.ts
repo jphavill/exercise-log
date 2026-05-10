@@ -102,6 +102,25 @@ describe('ApiService', () => {
     expect(http.get).toHaveBeenCalledWith('/api/workouts');
   });
 
+  it('fetches and validates a specific workout', async () => {
+    const workout = {
+      id: 4,
+      name: ' Grip Circuit ',
+      duration_min: 8,
+      steps: [{ kind: 'timed_exercise', title: ' Dead hang ', duration_sec: 30 }],
+    };
+    const http = { get: vi.fn().mockReturnValue(of(workout)) } as any;
+    const service = new ApiService(http);
+
+    await expect(firstValueFrom(service.getWorkout(4))).resolves.toEqual({
+      id: 4,
+      name: 'Grip Circuit',
+      duration_min: 8,
+      steps: [{ kind: 'timed_exercise', title: 'Dead hang', duration_sec: 30 }],
+    });
+    expect(http.get).toHaveBeenCalledWith('/api/workouts/4');
+  });
+
   it('rejects invalid workouts payloads', async () => {
     const http = { get: vi.fn().mockReturnValue(of({ workouts: [{ id: 1, name: '', duration_min: 12, steps: [] }] })) } as any;
     const service = new ApiService(http);

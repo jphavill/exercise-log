@@ -57,6 +57,15 @@ export class ApiService {
   getWorkouts(): Observable<Workout[]> {
     return this.http.get<unknown>('/api/workouts').pipe(map(validateWorkoutsResponse));
   }
+
+  getWorkout(id: number): Observable<Workout> {
+    return this.http.get<unknown>(`/api/workouts/${id}`).pipe(map(validateWorkoutResponse));
+  }
+}
+
+function validateWorkoutResponse(response: unknown): Workout {
+  const workout = isRecord(response) && isRecord(response['workout']) ? response['workout'] : response;
+  return validateWorkout(workout);
 }
 
 function validateWorkoutsResponse(response: unknown): Workout[] {

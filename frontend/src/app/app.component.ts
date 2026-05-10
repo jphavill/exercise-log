@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { NgIconComponent } from '@ng-icons/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
@@ -9,4 +9,10 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
-export class AppComponent {}
+export class AppComponent {
+  constructor(private readonly router: Router) {}
+
+  isWorkoutPlayer(): boolean {
+    return /^\/workouts\/[^/?#]+/.test(this.router.url);
+  }
+}

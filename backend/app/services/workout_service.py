@@ -39,3 +39,13 @@ def list_workouts(db: Session) -> WorkoutsResponse:
         .order_by(Workout.sort_order, Workout.id)
     ).all()
     return WorkoutsResponse(workouts=[_workout_response(workout) for workout in workouts])
+
+
+def get_workout(db: Session, workout_id: int) -> WorkoutResponse:
+    workout = db.scalar(
+        select(Workout).where(Workout.id == workout_id, Workout.enabled.is_(True))
+    )
+    if workout is None:
+        raise HTTPException(status_code=404, detail="workout not found")
+
+    return _workout_response(workout)

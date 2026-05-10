@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.db.session import SessionLocal
 from app.models.workout import Workout
@@ -62,6 +62,38 @@ def test_get_workouts_response_has_required_fields_and_steps(client):
 
     step_kinds = {step["kind"] for workout in workouts for step in workout["steps"]}
     assert {"timed_exercise", "rest", "rep_exercise"}.issubset(step_kinds)
+
+
+def test_get_workout_returns_specific_enabled_workout(client):
+    _replace_workouts(
+        [
+            _workout("First", sort_order=1),
+            _workout("Target", sort_order=2),
+        ]
+    )
+    list_response = client.get("/api/workouts")
+    target_id = next(workout["id"] for workout in list_response.json()["workouts"] if workout["name"] == "Target")
+
+    response = client.get(f"/api/workouts/{target_id}")
+
+    assert response.status_code == 200
+    workout = response.json()
+    assert workout["id"] == target_id
+    assert workout["name"] == "Target"
+    assert workout["steps"] == VALID_STEPS
+
+
+def test_get_workout_returns_404_for_missing_or_disabled_workout(client):
+    _replace_workouts([_workout("Disabled", sort_order=1, enabled=False)])
+    assert client.get("/api/workouts").json()["workouts"] == []
+
+    assert client.get("/api/workouts/999999").status_code == 404
+
+    with SessionLocal() as db:
+        workout_id = db.scalar(select(Workout.id).where(Workout.name == "Disabled"))
+
+    assert workout_id is not None
+    assert client.get(f"/api/workouts/{workout_id}").status_code == 404
 
 
 @pytest.mark.parametrize(

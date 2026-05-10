@@ -36,8 +36,7 @@ export class WorkoutsComponent implements OnInit {
   }
 
   selectWorkout(workout: Workout): void {
-    sessionStorage.setItem('selectedWorkout', JSON.stringify(workout));
-    void this.router.navigate(['/workouts'], { queryParams: { workoutId: workout.id } });
+    void this.router.navigate(['/workouts', workout.id]);
   }
 
   trackByWorkoutId(_: number, workout: Workout): number {

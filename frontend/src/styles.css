@@ -20,6 +20,11 @@ body {
   flex-direction: column;
 }
 
+.shell.workout-player-shell {
+  max-width: none;
+  padding: 0;
+}
+
 main {
   flex: 1;
 }
