@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { firstValueFrom, of } from 'rxjs';
 
 import { ApiService } from './api.service';
 
@@ -77,5 +78,34 @@ describe('ApiService', () => {
     expect(service.reorderExercises(payload)).toBe(response);
     expect(http.get).toHaveBeenCalledWith('/api/dashboard/summary');
     expect(http.put).toHaveBeenCalledWith('/api/exercises/reorder', payload);
+  });
+
+  it('accepts workouts returned as an object or top-level array', async () => {
+    const workout = {
+      id: 1,
+      name: ' Pull-up Ladder ',
+      duration_min: 12,
+      steps: [{ kind: 'rep_exercise', title: ' Pull-ups ', reps: 5, rep_unit: ' reps ' }],
+    };
+    const http = { get: vi.fn().mockReturnValueOnce(of({ workouts: [workout] })).mockReturnValueOnce(of([workout])) } as any;
+    const service = new ApiService(http);
+
+    await expect(firstValueFrom(service.getWorkouts())).resolves.toEqual([
+      {
+        id: 1,
+        name: 'Pull-up Ladder',
+        duration_min: 12,
+        steps: [{ kind: 'rep_exercise', title: 'Pull-ups', reps: 5, rep_unit: 'reps' }],
+      },
+    ]);
+    await expect(firstValueFrom(service.getWorkouts())).resolves.toHaveLength(1);
+    expect(http.get).toHaveBeenCalledWith('/api/workouts');
+  });
+
+  it('rejects invalid workouts payloads', async () => {
+    const http = { get: vi.fn().mockReturnValue(of({ workouts: [{ id: 1, name: '', duration_min: 12, steps: [] }] })) } as any;
+    const service = new ApiService(http);
+
+    await expect(firstValueFrom(service.getWorkouts())).rejects.toThrow('Invalid workouts payload');
   });
 });

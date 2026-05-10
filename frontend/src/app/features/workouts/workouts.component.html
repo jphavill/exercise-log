@@ -1,0 +1,18 @@
+<section class="workouts-page">
+  <h2 class="section-title workouts-title"><ng-icon name="navWorkouts" aria-hidden="true"></ng-icon><span>Workouts</span></h2>
+
+  <div class="workout-grid" [class.empty]="hasLoaded && !workouts.length">
+    <button
+      *ngFor="let workout of workouts; trackBy: trackByWorkoutId"
+      type="button"
+      class="workout-card"
+      [attr.aria-label]="'Start ' + workout.name"
+      (click)="selectWorkout(workout)"
+    >
+      <h3 class="workout-name">{{ workout.name }}</h3>
+      <p class="workout-duration">{{ workout.duration_min }} min</p>
+    </button>
+
+    <p *ngIf="hasLoaded && !workouts.length" class="empty-state">No workouts available</p>
+  </div>
+</section>

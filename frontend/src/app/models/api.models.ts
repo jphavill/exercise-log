@@ -106,3 +106,25 @@ export interface UpdateExerciseRequest {
 export interface ReorderExercisesRequest {
   items: { id: number; sort_order: number }[];
 }
+
+export interface TimedWorkoutStep {
+  kind: 'timed_exercise' | 'rest';
+  title: string;
+  duration_sec: number;
+}
+
+export interface RepWorkoutStep {
+  kind: 'rep_exercise';
+  title: string;
+  reps: number;
+  rep_unit: string;
+}
+
+export type WorkoutStep = TimedWorkoutStep | RepWorkoutStep;
+
+export interface Workout {
+  id: number;
+  name: string;
+  duration_min: number;
+  steps: WorkoutStep[];
+}

@@ -12,6 +12,7 @@ import {
   lucidePlus,
   lucideSave,
   lucideTable,
+  lucideTimer,
   lucideTrash2,
   lucideTrendingUp,
   lucideX,
@@ -20,6 +21,7 @@ import {
 export const appIcons = {
   navDashboard: lucideLayoutDashboard,
   navExercises: lucideDumbbell,
+  navWorkouts: lucideTimer,
   sectionToday: lucideActivity,
   sectionWeek: lucideCalendarDays,
   sectionTrends: lucideTrendingUp,
