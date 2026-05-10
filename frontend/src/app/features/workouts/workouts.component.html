@@ -1,18 +1,139 @@
 <section class="workouts-page">
-  <h2 class="section-title workouts-title"><ng-icon name="navWorkouts" aria-hidden="true"></ng-icon><span>Workouts</span></h2>
-
-  <div class="workout-grid" [class.empty]="hasLoaded && !workouts.length">
-    <button
-      *ngFor="let workout of workouts; trackBy: trackByWorkoutId"
-      type="button"
-      class="workout-card"
-      [attr.aria-label]="'Start ' + workout.name"
-      (click)="selectWorkout(workout)"
-    >
-      <h3 class="workout-name">{{ workout.name }}</h3>
-      <p class="workout-duration">{{ workout.duration_min }} min</p>
-    </button>
-
-    <p *ngIf="hasLoaded && !workouts.length" class="empty-state">No workouts available</p>
+  <div class="workouts-header">
+    <h2 class="section-title workouts-title"><ng-icon name="navWorkouts" aria-hidden="true"></ng-icon><span>Workouts</span></h2>
+    <label class="edit-toggle">
+      <span>Edit mode</span>
+      <input type="checkbox" [ngModel]="editMode" (ngModelChange)="setEditMode($event)" />
+    </label>
   </div>
+
+  <p *ngIf="message" class="status-message">{{ message }}</p>
+
+  <ng-container *ngIf="!editMode; else editModeTemplate">
+    <div class="workout-grid" [class.empty]="hasLoaded && !workouts.length">
+      <button
+        *ngFor="let workout of workouts; trackBy: trackByWorkoutId"
+        type="button"
+        class="workout-card"
+        [attr.aria-label]="'Start ' + workout.name"
+        (click)="selectWorkout(workout)"
+      >
+        <h3 class="workout-name">{{ workout.name }}</h3>
+        <p class="workout-duration">{{ workout.duration_min }} min</p>
+      </button>
+
+      <p *ngIf="hasLoaded && !workouts.length" class="empty-state">No workouts available</p>
+    </div>
+  </ng-container>
+
+  <ng-template #editModeTemplate>
+    <div
+      class="workout-grid edit-grid"
+      [class.empty]="hasLoaded && !workoutDefinitions.length"
+      cdkDropList
+      [cdkDropListData]="workoutDefinitions"
+      (cdkDropListDropped)="onDrop($event)"
+    >
+      <div
+        *ngFor="let workout of workoutDefinitions; trackBy: trackByDefinitionWorkoutId"
+        class="workout-card edit-card"
+        [class.disabled-card]="!workout.enabled"
+        cdkDrag
+      >
+        <div class="card-actions" (click)="onMenuClick($event)">
+          <button type="button" class="icon-button" aria-label="Workout actions" (click)="toggleMenu(workout.id, $event)">
+            <ng-icon name="actionMore" aria-hidden="true"></ng-icon>
+          </button>
+          <div class="row-menu" *ngIf="openMenuWorkoutId === workout.id">
+            <button type="button" class="menu-item" (click)="editWorkout(workout)">Edit</button>
+            <button type="button" class="menu-item" (click)="copyWorkout(workout)">Copy</button>
+            <button type="button" class="menu-item" (click)="startNewWorkout()">New workout</button>
+            <button type="button" class="menu-item danger" (click)="requestDelete(workout)">Delete</button>
+          </div>
+        </div>
+
+        <label class="enabled-toggle" (click)="$event.stopPropagation()">
+          <span class="sr-only">Enabled</span>
+          <input type="checkbox" [checked]="workout.enabled" (change)="toggleWorkoutEnabled(workout, $event)" />
+        </label>
+
+        <div class="drag-surface" cdkDragHandle>
+          <h3 class="workout-name">{{ workout.name }}</h3>
+          <p class="workout-duration">{{ workout.duration_min }} min</p>
+          <p class="workout-meta">Order {{ workout.sort_order }} &middot; {{ workout.enabled ? 'Enabled' : 'Disabled' }}</p>
+        </div>
+      </div>
+
+      <div *ngIf="hasLoaded && !workoutDefinitions.length" class="empty-state editor-empty">
+        <p>No workouts available</p>
+        <button type="button" class="button-with-icon" (click)="startNewWorkout()">
+          <ng-icon name="actionAdd" aria-hidden="true"></ng-icon>
+          <span>New workout</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="editor-toolbar" *ngIf="workoutDefinitions.length">
+      <button type="button" class="button-with-icon" (click)="startNewWorkout()">
+        <ng-icon name="actionAdd" aria-hidden="true"></ng-icon>
+        <span>New workout</span>
+      </button>
+    </div>
+
+    <section *ngIf="editorDraft" class="section workout-editor">
+      <div class="editor-header">
+        <h3 class="editor-title">
+          {{ editorDraft.mode === 'edit' ? 'Edit Workout' : editorDraft.mode === 'copy' ? 'Copy Workout' : 'New Workout' }}
+        </h3>
+        <button type="button" class="icon-button" aria-label="Close editor" (click)="cancelEdit()">
+          <ng-icon name="actionClear" aria-hidden="true"></ng-icon>
+        </button>
+      </div>
+
+      <div class="editor-form-grid">
+        <label class="field-label">
+          <span>Name</span>
+          <input type="text" [(ngModel)]="editorDraft.name" />
+        </label>
+        <label class="field-label">
+          <span>Sort order</span>
+          <input type="number" min="0" step="1" [(ngModel)]="editorDraft.sort_order" />
+        </label>
+        <label class="checkbox-field">
+          <input type="checkbox" [(ngModel)]="editorDraft.enabled" />
+          <span>Enabled</span>
+        </label>
+        <div class="duration-preview">
+          <span>Duration preview</span>
+          <strong>{{ draftValidation.durationMin }} min</strong>
+        </div>
+      </div>
+
+      <label class="field-label json-field">
+        <span>Definition JSON</span>
+        <textarea rows="16" spellcheck="false" [(ngModel)]="editorDraft.definitionJson"></textarea>
+      </label>
+
+      <p class="validation-line" [class.invalid]="!draftValidation.valid">{{ draftValidation.message }}</p>
+
+      <div class="editor-actions">
+        <button type="button" class="button-with-icon" (click)="saveDraft()" [disabled]="!canSaveDraft()">
+          <ng-icon name="actionSave" aria-hidden="true"></ng-icon>
+          <span>{{ isSaving ? 'Saving...' : 'Save' }}</span>
+        </button>
+        <button type="button" class="secondary-button" (click)="cancelEdit()">Cancel</button>
+      </div>
+    </section>
+  </ng-template>
 </section>
+
+<div class="modal-overlay" *ngIf="deleteCandidate">
+  <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-workout-title">
+    <h3 id="delete-workout-title">Delete workout?</h3>
+    <p>Delete "{{ deleteCandidate.name }}" permanently. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button type="button" class="secondary-button" (click)="cancelDelete()">Cancel</button>
+      <button type="button" class="danger-button" (click)="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>

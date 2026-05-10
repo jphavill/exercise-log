@@ -127,4 +127,83 @@ describe('ApiService', () => {
 
     await expect(firstValueFrom(service.getWorkouts())).rejects.toThrow('Invalid workouts payload');
   });
+
+  it('fetches and validates workout definitions for editor mode', async () => {
+    const workout = {
+      id: 4,
+      name: ' Grip Circuit ',
+      duration_min: 8,
+      enabled: false,
+      sort_order: 3,
+      updated_at: ' 2026-05-10T12:00:00Z ',
+      definition: {
+        steps: [{ kind: 'rest', title: ' Rest ', duration_sec: 45 }],
+      },
+    };
+    const http = {
+      get: vi.fn().mockReturnValueOnce(of({ workouts: [workout] })).mockReturnValueOnce(of(workout)),
+    } as any;
+    const service = new ApiService(http);
+
+    await expect(firstValueFrom(service.getWorkoutDefinitions())).resolves.toEqual([
+      {
+        id: 4,
+        name: 'Grip Circuit',
+        duration_min: 8,
+        enabled: false,
+        sort_order: 3,
+        updated_at: '2026-05-10T12:00:00Z',
+        definition: { steps: [{ kind: 'rest', title: 'Rest', duration_sec: 45 }] },
+      },
+    ]);
+    await expect(firstValueFrom(service.getWorkoutDefinition(4))).resolves.toEqual({
+      id: 4,
+      name: 'Grip Circuit',
+      duration_min: 8,
+      enabled: false,
+      sort_order: 3,
+      updated_at: '2026-05-10T12:00:00Z',
+      definition: { steps: [{ kind: 'rest', title: 'Rest', duration_sec: 45 }] },
+    });
+    expect(http.get).toHaveBeenCalledWith('/api/workouts?include_disabled=true&detail=definition');
+    expect(http.get).toHaveBeenCalledWith('/api/workouts/4?include_disabled=true&detail=definition');
+  });
+
+  it('uses workout editor write endpoints', async () => {
+    const response = { id: 1 };
+    const http = {
+      post: vi.fn().mockReturnValue(response),
+      put: vi.fn().mockReturnValueOnce(response).mockReturnValueOnce(of({ workouts: [] })),
+      patch: vi.fn().mockReturnValue(response),
+      delete: vi.fn().mockReturnValue(response),
+    } as any;
+    const service = new ApiService(http);
+    const payload = {
+      name: 'New Workout',
+      enabled: false,
+      sort_order: 1,
+      definition: { steps: [{ kind: 'timed_exercise' as const, title: 'Hang', duration_sec: 30 }] },
+    };
+
+    expect(service.createWorkout(payload)).toBe(response);
+    expect(service.updateWorkout(7, payload)).toBe(response);
+    expect(service.updateWorkoutEnabled(7, { enabled: true })).toBe(response);
+    await expect(firstValueFrom(service.reorderWorkouts({ items: [{ id: 7, sort_order: 2 }] }))).resolves.toEqual([]);
+    expect(service.deleteWorkout(7)).toBe(response);
+
+    expect(http.post).toHaveBeenCalledWith('/api/workouts', payload);
+    expect(http.put).toHaveBeenCalledWith('/api/workouts/7', payload);
+    expect(http.patch).toHaveBeenCalledWith('/api/workouts/7/enabled', { enabled: true });
+    expect(http.put).toHaveBeenCalledWith('/api/workouts/reorder', { items: [{ id: 7, sort_order: 2 }] });
+    expect(http.delete).toHaveBeenCalledWith('/api/workouts/7');
+  });
+
+  it('rejects invalid workout definition payloads', async () => {
+    const http = {
+      get: vi.fn().mockReturnValue(of({ workouts: [{ id: 1, name: 'Workout', duration_min: 1, enabled: true, sort_order: 1, updated_at: 'now', definition: { steps: [] } }] })),
+    } as any;
+    const service = new ApiService(http);
+
+    await expect(firstValueFrom(service.getWorkoutDefinitions())).rejects.toThrow('Invalid workouts payload');
+  });
 });

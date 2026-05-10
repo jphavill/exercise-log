@@ -3,14 +3,19 @@ import { HttpClient } from '@angular/common/http';
 import { map, Observable } from 'rxjs';
 
 import {
+  CreateWorkoutRequest,
   CreateExerciseRequest,
   DashboardSummary,
   Exercise,
   ExerciseHistory,
   ExerciseLog,
   ReorderExercisesRequest,
+  ReorderWorkoutsRequest,
   UpdateExerciseRequest,
+  UpdateWorkoutEnabledRequest,
+  UpdateWorkoutRequest,
   Workout,
+  WorkoutDefinitionItem,
   WorkoutStep,
 } from '../../models/api.models';
 
@@ -61,6 +66,40 @@ export class ApiService {
   getWorkout(id: number): Observable<Workout> {
     return this.http.get<unknown>(`/api/workouts/${id}`).pipe(map(validateWorkoutResponse));
   }
+
+  getWorkoutDefinitions(): Observable<WorkoutDefinitionItem[]> {
+    return this.http
+      .get<unknown>('/api/workouts?include_disabled=true&detail=definition')
+      .pipe(map(validateWorkoutDefinitionsResponse));
+  }
+
+  getWorkoutDefinition(id: number): Observable<WorkoutDefinitionItem> {
+    return this.http
+      .get<unknown>(`/api/workouts/${id}?include_disabled=true&detail=definition`)
+      .pipe(map(validateWorkoutDefinitionResponse));
+  }
+
+  createWorkout(payload: CreateWorkoutRequest): Observable<WorkoutDefinitionItem> {
+    return this.http.post<WorkoutDefinitionItem>('/api/workouts', payload);
+  }
+
+  updateWorkout(id: number, payload: UpdateWorkoutRequest): Observable<WorkoutDefinitionItem> {
+    return this.http.put<WorkoutDefinitionItem>(`/api/workouts/${id}`, payload);
+  }
+
+  updateWorkoutEnabled(id: number, payload: UpdateWorkoutEnabledRequest): Observable<WorkoutDefinitionItem> {
+    return this.http.patch<WorkoutDefinitionItem>(`/api/workouts/${id}/enabled`, payload);
+  }
+
+  reorderWorkouts(payload: ReorderWorkoutsRequest): Observable<WorkoutDefinitionItem[]> {
+    return this.http
+      .put<unknown>('/api/workouts/reorder', payload)
+      .pipe(map(validateWorkoutDefinitionsResponse));
+  }
+
+  deleteWorkout(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/workouts/${id}`);
+  }
 }
 
 function validateWorkoutResponse(response: unknown): Workout {
@@ -101,6 +140,60 @@ function validateWorkout(value: unknown): Workout {
     name: name.trim(),
     duration_min: durationMin,
     steps: steps.map(validateWorkoutStep),
+  };
+}
+
+function validateWorkoutDefinitionResponse(response: unknown): WorkoutDefinitionItem {
+  return validateWorkoutDefinitionItem(response);
+}
+
+function validateWorkoutDefinitionsResponse(response: unknown): WorkoutDefinitionItem[] {
+  const workouts = isRecord(response) && Array.isArray(response['workouts']) ? response['workouts'] : null;
+
+  if (!workouts) {
+    throw invalidWorkoutsPayload();
+  }
+
+  return workouts.map(validateWorkoutDefinitionItem);
+}
+
+function validateWorkoutDefinitionItem(value: unknown): WorkoutDefinitionItem {
+  if (!isRecord(value)) {
+    throw invalidWorkoutsPayload();
+  }
+
+  const id = value['id'];
+  const name = value['name'];
+  const durationMin = value['duration_min'];
+  const enabled = value['enabled'];
+  const sortOrder = value['sort_order'];
+  const updatedAt = value['updated_at'];
+  const definition = value['definition'];
+
+  if (
+    !isFiniteNumber(id) ||
+    !isNonEmptyString(name) ||
+    !isFiniteNumber(durationMin) ||
+    typeof enabled !== 'boolean' ||
+    !isFiniteNumber(sortOrder) ||
+    !isNonEmptyString(updatedAt) ||
+    !isRecord(definition) ||
+    !Array.isArray(definition['steps']) ||
+    definition['steps'].length === 0
+  ) {
+    throw invalidWorkoutsPayload();
+  }
+
+  return {
+    id,
+    name: name.trim(),
+    duration_min: durationMin,
+    enabled,
+    sort_order: sortOrder,
+    updated_at: updatedAt.trim(),
+    definition: {
+      steps: definition['steps'].map(validateWorkoutStep),
+    },
   };
 }
 

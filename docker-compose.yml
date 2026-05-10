@@ -38,6 +38,15 @@ services:
 
   caddy:
     image: caddy:2.9-alpine
+    environment:
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+      NO_PROXY: "localhost,127.0.0.1,::1,backend,frontend,postgres"
+      no_proxy: "localhost,127.0.0.1,::1,backend,frontend,postgres"
     ports:
       - "8003:80"
     volumes:

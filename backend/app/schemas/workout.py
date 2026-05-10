@@ -27,7 +27,7 @@ WorkoutStep = Annotated[TimedExerciseStep | RestStep | RepExerciseStep, Field(di
 
 
 class WorkoutDefinition(BaseModel):
-    steps: list[WorkoutStep]
+    steps: list[WorkoutStep] = Field(min_length=1)
 
 
 class WorkoutResponse(BaseModel):
@@ -42,3 +42,44 @@ class WorkoutResponse(BaseModel):
 
 class WorkoutsResponse(BaseModel):
     workouts: list[WorkoutResponse]
+
+
+class WorkoutDefinitionResponse(BaseModel):
+    id: int
+    name: str
+    duration_min: int
+    enabled: bool
+    sort_order: int
+    updated_at: datetime
+    definition: WorkoutDefinition
+
+
+class WorkoutDefinitionsResponse(BaseModel):
+    workouts: list[WorkoutDefinitionResponse]
+
+
+class WorkoutCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    enabled: bool = True
+    sort_order: int = Field(ge=0)
+    definition: WorkoutDefinition
+
+
+class WorkoutUpdateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    enabled: bool
+    sort_order: int = Field(ge=0)
+    definition: WorkoutDefinition
+
+
+class WorkoutEnabledPatchRequest(BaseModel):
+    enabled: bool
+
+
+class ReorderWorkoutItem(BaseModel):
+    id: int
+    sort_order: int = Field(ge=0)
+
+
+class ReorderWorkoutsRequest(BaseModel):
+    items: list[ReorderWorkoutItem]

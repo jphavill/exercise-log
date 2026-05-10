@@ -128,3 +128,39 @@ export interface Workout {
   duration_min: number;
   steps: WorkoutStep[];
 }
+
+export interface WorkoutDefinition {
+  steps: WorkoutStep[];
+}
+
+export interface WorkoutDefinitionItem {
+  id: number;
+  name: string;
+  duration_min: number;
+  enabled: boolean;
+  sort_order: number;
+  updated_at: string;
+  definition: WorkoutDefinition;
+}
+
+export interface CreateWorkoutRequest {
+  name: string;
+  enabled: boolean;
+  sort_order: number;
+  definition: WorkoutDefinition;
+}
+
+export interface UpdateWorkoutRequest {
+  name: string;
+  enabled: boolean;
+  sort_order: number;
+  definition: WorkoutDefinition;
+}
+
+export interface UpdateWorkoutEnabledRequest {
+  enabled: boolean;
+}
+
+export interface ReorderWorkoutsRequest {
+  items: { id: number; sort_order: number }[];
+}
