@@ -1,4 +1,9 @@
-from .helpers import around_training_cutoff_utc_timestamps, cross_day_utc_timestamp, set_log_timestamp
+from .helpers import (
+    around_training_cutoff_utc_timestamps,
+    cross_day_utc_timestamp,
+    cross_training_day_utc_timestamp,
+    set_log_timestamp,
+)
 
 
 def test_dashboard_summary_output(client):
@@ -14,11 +19,11 @@ def test_dashboard_summary_output(client):
     assert body["total_logs_today"] >= 2
 
 
-def test_dashboard_summary_uses_request_timezone_for_day_bucket(client):
+def test_dashboard_summary_uses_request_timezone_for_cross_training_day_timestamp_bucket(client):
     create_response = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 5})
     assert create_response.status_code == 200
     log_id = create_response.json()["id"]
-    set_log_timestamp(log_id, cross_day_utc_timestamp("America/Halifax"))
+    set_log_timestamp(log_id, cross_training_day_utc_timestamp("America/Halifax"))
 
     utc_summary = client.get("/api/dashboard/summary", headers={"X-Timezone": "UTC"})
     assert utc_summary.status_code == 200

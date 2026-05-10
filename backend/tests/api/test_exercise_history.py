@@ -1,4 +1,9 @@
-from .helpers import around_training_cutoff_utc_timestamps, cross_day_utc_timestamp, set_log_timestamp
+from .helpers import (
+    around_training_cutoff_utc_timestamps,
+    cross_day_utc_timestamp,
+    cross_training_day_utc_timestamp,
+    set_log_timestamp,
+)
 
 
 def test_history_endpoint_output(client):
@@ -25,10 +30,10 @@ def test_history_endpoint_missing_slug_returns_404(client):
     assert response.status_code == 404
 
 
-def test_history_uses_request_timezone_for_day_bucket(client):
+def test_history_uses_request_timezone_for_cross_training_day_timestamp_bucket(client):
     create_response = client.post("/api/logs", json={"exercise_slug": "pullups", "reps": 5})
     assert create_response.status_code == 200
-    set_log_timestamp(create_response.json()["id"], cross_day_utc_timestamp("America/Halifax"))
+    set_log_timestamp(create_response.json()["id"], cross_training_day_utc_timestamp("America/Halifax"))
 
     utc_history = client.get("/api/exercises/pullups/history?days=1", headers={"X-Timezone": "UTC"})
     halifax_history = client.get(

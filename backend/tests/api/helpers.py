@@ -29,6 +29,11 @@ def cross_day_utc_timestamp(timezone_name: str) -> datetime:
     raise AssertionError("Could not create a cross-day timestamp for timezone test")
 
 
+def cross_training_day_utc_timestamp(timezone_name: str) -> datetime:
+    before_cutoff_utc, _ = around_training_cutoff_utc_timestamps(timezone_name)
+    return before_cutoff_utc
+
+
 def training_day_utc_timestamp(
     timezone_name: str,
     *,
