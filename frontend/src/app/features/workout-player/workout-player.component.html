@@ -38,4 +38,8 @@
       </ng-container>
     </div>
   </div>
+
+  <div *ngIf="stepProgressLabel as stepProgress" class="player-progress" aria-label="Workout progress">
+    {{ stepProgress }}
+  </div>
 </section>

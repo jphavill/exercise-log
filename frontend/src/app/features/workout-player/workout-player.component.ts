@@ -82,6 +82,19 @@ export class WorkoutPlayerComponent implements OnInit, OnDestroy {
     return this.workout.steps[this.currentStepIndex + 1] ?? null;
   }
 
+  get stepProgressLabel(): string | null {
+    if (!this.workout || this.state === 'loading' || this.state === 'ready' || this.state === 'finished' || this.state === 'error') {
+      return null;
+    }
+
+    const totalSteps = this.workout.steps.length;
+    if (totalSteps === 0 || this.currentStepIndex >= totalSteps) {
+      return null;
+    }
+
+    return `${this.currentStepIndex + 1}/${totalSteps}`;
+  }
+
   get showCountdown(): boolean {
     return this.state === 'intro' || (this.state === 'active' && this.currentStep !== null && this.isTimedStep(this.currentStep));
   }
