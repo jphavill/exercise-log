@@ -53,8 +53,8 @@
   min-height: 0;
   display: grid;
   grid-template-rows: auto auto auto;
-  gap: 7rem;
-  margin-top: 7rem;
+  gap: 5rem;
+  margin-top: 3rem;
   margin-bottom: 30svh;
 }
 
