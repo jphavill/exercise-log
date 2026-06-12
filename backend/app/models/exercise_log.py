@@ -8,6 +8,21 @@ from app.db.base import Base
 
 
 class ExerciseLog(Base):
+    """Represents a single instance of an exercise being logged during a workout.
+
+    Exercise logs track the actual performance data for each exercise instance. 
+    This allows users to record their workout history and track progress over time.
+    
+    Key Relationships:
+        - Many-to-One relationship with Exercise through exercise_id foreign key
+        - Each log entry belongs to exactly one exercise
+    
+    Fields:
+        - reps: Number of repetitions (if applicable for the exercise's metric type)
+        - duration_seconds: Duration in seconds (if applicable for the exercise's metric type)  
+        - weight_lbs: Weight used in pounds (if applicable for the exercise's metric type)
+        - notes: Optional text notes about the specific workout instance
+    """
     __tablename__ = "exercise_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)

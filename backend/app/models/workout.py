@@ -9,6 +9,22 @@ from app.db.base import Base
 
 
 class Workout(Base):
+    """Represents a workout definition that can be scheduled and performed.
+
+    Workouts are structured exercise routines composed of multiple steps including
+    timed exercises, rest periods, and rep-based exercises. Each workout can be 
+    enabled/disabled and ordered for display purposes.
+    
+    Key Relationships:
+        - Workout definitions are stored as JSON structures in the 'definition' field
+        - Each workout has a name, duration estimate, and configuration options
+    
+    Fields:
+        - definition: JSON structure containing workout steps (timed exercises, rest periods, etc.)
+        - enabled: Boolean flag to control if workout is available for scheduling
+        - sort_order: Integer used to order workouts in lists
+        - updated_at: Timestamp tracking when the workout definition was last modified
+    """
     __tablename__ = "workouts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)

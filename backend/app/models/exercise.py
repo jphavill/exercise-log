@@ -14,6 +14,22 @@ class MetricType(str, enum.Enum):
 
 
 class Exercise(Base):
+    """Represents an exercise type in the fitness tracking system.
+
+    Exercises are the fundamental building blocks of workouts. Each exercise has a specific
+    metric type that determines how performance is measured (reps, duration, or reps with weight).
+    
+    Key Relationships:
+        - One-to-Many relationship with ExerciseLog through the 'logs' attribute
+        - Each exercise can have multiple log entries tracking individual workout instances
+    
+    Constraints:
+        - Goal values (reps, duration, weight) must be positive if specified
+        - Goal fields must match the exercise's metric type:
+          * reps exercises require goal_reps
+          * duration_seconds exercises require goal_duration_seconds  
+          * reps_plus_weight_lbs exercises require both goal_reps and goal_weight_lbs
+    """
     __tablename__ = "exercises"
     __table_args__ = (
         CheckConstraint(
